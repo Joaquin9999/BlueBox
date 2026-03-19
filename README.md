@@ -49,6 +49,7 @@ bluebox classify ./suspicious-beaconing
 bluebox solve ./suspicious-beaconing
 bluebox status ./suspicious-beaconing
 bluebox doctor
+bluebox finalize ./suspicious-beaconing
 ```
 
 ## Qué hace `bluebox init`
@@ -76,10 +77,10 @@ bluebox doctor
 - Infiere subcategorías cuando aplica.
 - Propone una ruta inicial de análisis e hipótesis de trabajo (advisory).
 - Actualiza:
-	- `notes/hypotheses.md`
-	- `notes/writeup.md`
-	- `notes/changelog.md`
-	- `meta/solution_state.json` (estado `classified`)
+  - `notes/hypotheses.md`
+  - `notes/writeup.md`
+  - `notes/changelog.md`
+  - `meta/solution_state.json` (estado `classified`)
 
 ## Qué hace `bluebox solve`
 
@@ -94,22 +95,36 @@ bluebox doctor
 ## Qué hace `bluebox status`
 
 - Muestra resumen operativo del caso:
-	- nombre del caso
-	- título
-	- estado actual
-	- categoría
-	- número de artefactos
-	- cantidad de hipótesis activas
-	- última actualización registrada en changelog
+  - nombre del caso
+  - título
+  - estado actual
+  - categoría
+  - número de artefactos
+  - cantidad de hipótesis activas
+  - última actualización registrada en changelog
 
 ## Qué hace `bluebox doctor`
 
 - Ejecuta diagnóstico rápido del entorno:
-	- versión de Python en uso
-	- plataforma del sistema
-	- disponibilidad de `uv`
-	- disponibilidad de `codex`
-	- disponibilidad de `git`
+  - versión de Python en uso
+  - plataforma del sistema
+  - disponibilidad de `uv`
+  - disponibilidad de `codex`
+  - disponibilidad de `git`
+
+## Qué hace `bluebox finalize`
+
+- Lee documentación acumulada:
+  - `notes/writeup.md`
+  - `notes/findings.md`
+  - `notes/changelog.md`
+  - `notes/hypotheses.md`
+  - `meta/evidence_summary.json`
+  - `meta/solution_state.json`
+- Genera `notes/writeup_final.md` fiel al contenido ya documentado.
+- Si el caso está en `solved/finalized`, mueve estado a `finalized`.
+- Si no está resuelto, aborta limpiamente por defecto.
+- Puede generar versión incompleta explícita con `--allow-incomplete`.
 
 ## Ejecución de pruebas
 
