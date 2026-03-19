@@ -1,9 +1,10 @@
+import json
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
-from bluebox.core import initialize_case_from_artifacts, validate_case_structure
+from bluebox.core import classify_case, initialize_case_from_artifacts, validate_case_structure
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -65,6 +66,23 @@ def validate(case_path: Path = typer.Argument(..., help="Path to case workspace.
 
     if not report.is_valid:
         raise typer.Exit(code=1)
+
+
+@app.command()
+def classify(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+    """Classify a case and propose initial analysis direction."""
+    try:
+        outcome = classify_case(case_path.resolve())
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[green]Classified:[/green] {outcome.case_path}")
+    console.print(f"[cyan]Category:[/cyan] {outcome.category}")
+    console.print(
+        "[cyan]Subcategories:[/cyan] "
+        + (", ".join(outcome.subcategories) if outcome.subcategories else "none")
+    )
 
 
 if __name__ == "__main__":

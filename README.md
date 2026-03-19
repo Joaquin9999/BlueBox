@@ -45,6 +45,7 @@ bluebox --help
 bluebox version
 bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
 bluebox validate ./suspicious-beaconing
+bluebox classify ./suspicious-beaconing
 ```
 
 ## Qué hace `bluebox init`
@@ -64,6 +65,18 @@ bluebox validate ./suspicious-beaconing
 - JSON válido en archivos `meta/*.json` requeridos.
 - Estado permitido en `meta/solution_state.json`.
 - Retorna código `0` si el caso es válido y `1` si hay errores.
+
+## Qué hace `bluebox classify`
+
+- Lee `meta/artifacts_inventory.json` y detecta tipos de artefacto por extensión/nombre.
+- Infiere categoría inicial (ej. `pcap/network forensics`, `windows dfir`, `phishing`, etc.).
+- Infiere subcategorías cuando aplica.
+- Propone una ruta inicial de análisis e hipótesis de trabajo (advisory).
+- Actualiza:
+	- `notes/hypotheses.md`
+	- `notes/writeup.md`
+	- `notes/changelog.md`
+	- `meta/solution_state.json` (estado `classified`)
 
 ## Ejecución de pruebas
 
