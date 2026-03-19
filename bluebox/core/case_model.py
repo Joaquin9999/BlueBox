@@ -15,14 +15,6 @@ REQUIRED_CASE_DIRECTORIES: tuple[str, ...] = (
     "agent",
     "memory",
     "output",
-    "original",
-    "working",
-    "derived/extracted",
-    "derived/parsed",
-    "derived/timelines",
-    "notes",
-    "meta",
-    ".codex",
 )
 
 REQUIRED_CASE_FILES: tuple[str, ...] = (
@@ -37,17 +29,6 @@ REQUIRED_CASE_FILES: tuple[str, ...] = (
     "output/writeup.md",
     "output/writeup_final.md",
     "output/final_flag.txt",
-    "notes/writeup.md",
-    "notes/findings.md",
-    "notes/changelog.md",
-    "notes/hypotheses.md",
-    "notes/writeup_final.md",
-    "meta/solution_state.json",
-    "meta/artifacts_inventory.json",
-    "meta/hashes.json",
-    "meta/evidence_summary.json",
-    ".codex/prompt.txt",
-    ".codex/context.md",
 )
 
 

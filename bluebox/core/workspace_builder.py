@@ -22,7 +22,7 @@ def create_case_workspace(base_path: Path, spec: CaseWorkspaceSpec) -> Path:
         "title": spec.title,
         "context": spec.context,
         "source_ref": "",
-        "evidence_mode": "legacy-copy",
+        "evidence_mode": "reference-only",
         "timestamp": datetime.now(UTC).replace(microsecond=0).isoformat(),
     }
     render_case_templates(case_root=case_root, context=context)
