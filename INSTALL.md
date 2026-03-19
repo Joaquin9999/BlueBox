@@ -51,6 +51,30 @@ git pull --ff-only
 python -m pip install .
 ```
 
+## 6.1) Instalar herramientas opcionales DFIR/Blue Team
+
+BlueBox incluye perfiles de herramientas opcionales.
+
+Ver perfiles y estado:
+
+```bash
+bluebox tools list
+bluebox tools check base
+bluebox tools check network
+```
+
+Instalación (segura por defecto):
+
+```bash
+bluebox tools install network
+```
+
+Ejecución real de instalación:
+
+```bash
+bluebox tools install network --apply
+```
+
 ## 7) Instalación editable (modo desarrollo)
 
 Si vas a modificar código activamente:

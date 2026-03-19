@@ -131,12 +131,40 @@ bluebox finalize ./safe-demo --allow-incomplete
 ```bash
 bluebox version
 bluebox doctor
+bluebox tools list
+bluebox tools check base
+bluebox tools install network
+bluebox tools install network --apply
 bluebox init <name> --artifacts <path> --title <title>
 bluebox classify <case-path>
 bluebox validate <case-path>
 bluebox solve <case-path> [--no-launch]
 bluebox status <case-path>
 bluebox finalize <case-path> [--allow-incomplete]
+```
+
+## 6.1 Perfiles de herramientas opcionales
+
+BlueBox permite gestionar herramientas comunes de forense/blue team por perfil.
+
+- `base`
+- `network`
+- `windows-dfir`
+- `linux-dfir`
+- `malware`
+
+Primero revisa qué tienes instalado:
+
+```bash
+bluebox tools list
+bluebox tools check network
+```
+
+Si quieres instalar faltantes:
+
+```bash
+bluebox tools install network      # dry-run (solo sugerencias)
+bluebox tools install network --apply
 ```
 
 ## 7) Errores comunes

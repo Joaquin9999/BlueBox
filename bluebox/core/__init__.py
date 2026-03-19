@@ -11,6 +11,7 @@ from .finalize_service import FinalizeOutcome, finalize_case
 from .init_service import initialize_case_from_artifacts
 from .solve_service import SolveOutcome, prepare_and_launch_solve
 from .status_service import CaseStatusSnapshot, get_case_status
+from .tools_service import ToolInstallResult, ToolStatus, check_profile, install_profile, list_profiles
 from .validation import ALLOWED_SOLUTION_STATUS, ValidationReport, validate_case_structure
 from .workspace_builder import create_case_workspace
 
@@ -21,13 +22,18 @@ __all__ = [
     "DoctorReport",
     "FinalizeOutcome",
     "SolveOutcome",
+    "ToolInstallResult",
+    "ToolStatus",
     "ToolCheck",
     "REQUIRED_CASE_DIRECTORIES",
     "REQUIRED_CASE_FILES",
     "build_doctor_report",
     "classify_case",
+    "check_profile",
     "finalize_case",
     "get_case_status",
+    "install_profile",
+    "list_profiles",
     "prepare_and_launch_solve",
     "sanitize_case_name",
     "ensure_case_structure",
