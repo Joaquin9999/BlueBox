@@ -15,10 +15,12 @@ bluebox --help
 Flujo mínimo de prueba:
 
 ```bash
+bluebox start
 bluebox doctor
-bluebox init "Safe Demo" --artifacts ./examples/safe-demo/artifacts --title "Safe Demo"
-bluebox classify ./safe-demo
-bluebox validate ./safe-demo
+bluebox init
+# (modo interactivo: te pedirá challenge name, artifacts, title, context y base path)
+bluebox classify
+bluebox validate
 ```
 
 ## Estado actual
@@ -55,7 +57,7 @@ bluebox validate ./safe-demo
 ## Requisitos
 
 - Python `>=3.12`.
-- Entorno Unix-like (probado en macOS; enfoque compatible con Ubuntu/Debian).
+- Entorno de consola en macOS, Linux o Windows.
 
 ## Instalación local (desarrollo)
 
@@ -70,14 +72,21 @@ pip install -e .
 
 ```bash
 bluebox --help
+bluebox start
 bluebox version
-bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
-bluebox validate ./suspicious-beaconing
-bluebox classify ./suspicious-beaconing
-bluebox solve ./suspicious-beaconing
-bluebox status ./suspicious-beaconing
+bluebox init
+bluebox init --name "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
+bluebox validate
+bluebox classify
+bluebox solve --no-launch
+bluebox status
 bluebox doctor
-bluebox finalize ./suspicious-beaconing
+bluebox finalize --allow-incomplete
+bluebox project show
+bluebox project set ./suspicious-beaconing
+bluebox project list
+bluebox project list --existing-only
+bluebox project clear
 bluebox tools list
 bluebox tools check base
 bluebox tools install network
@@ -93,6 +102,7 @@ bluebox tools install network --apply
 - Construye inventario en `meta/artifacts_inventory.json`.
 - Inicializa `meta/solution_state.json` con estado `initialized`.
 - Escribe la primera entrada en `notes/changelog.md`.
+- Guarda el proyecto activo en `.bluebox/active_case.txt` para usar otros comandos sin ruta explícita.
 
 ## Qué valida `bluebox validate`
 
@@ -149,7 +159,21 @@ bluebox tools install network --apply
 - `bluebox tools list`: lista perfiles de herramientas DFIR/Blue Team.
 - `bluebox tools check <profile>`: verifica disponibilidad de herramientas del perfil.
 - `bluebox tools install <profile>`: muestra comandos sugeridos (dry-run por defecto).
-- `bluebox tools install <profile> --apply`: ejecuta instalación para faltantes.
+- `bluebox tools install <profile> --apply`: ejecuta comandos de instalación en tu sistema (brew/apt/pip según host).
+
+## Qué hace `bluebox project`
+
+- `bluebox project show`: muestra la ruta del proyecto activo en el workspace actual.
+- `bluebox project set <case-path>`: cambia el proyecto activo para ejecutar comandos sin pasar ruta.
+- `bluebox project list`: lista proyectos conocidos en el historial del workspace.
+- `bluebox project list --existing-only`: muestra solo proyectos cuya ruta todavía existe.
+- `bluebox project clear`: limpia el proyecto activo actual.
+
+## Sobre entorno virtual y sistema
+
+- BlueBox puede ejecutarse dentro de `.venv` (recomendado) o en Python global.
+- El paquete `bluebox` sí vive en el entorno donde lo instales (venv o sistema).
+- Las herramientas de `bluebox tools install --apply` son herramientas del host (no quedan encerradas solo en el venv, salvo comandos explícitos de `pip`).
 
 ## Qué hace `bluebox finalize`
 

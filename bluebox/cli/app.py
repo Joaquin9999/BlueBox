@@ -3,6 +3,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 
 from bluebox.core import (
     build_doctor_report,
@@ -22,8 +23,102 @@ app = typer.Typer(
     help="BlueBox CLI",
 )
 console = Console()
-tools_app = typer.Typer(help="Manage optional Blue Team/DFIR tool profiles.")
+ACTIVE_PROJECT_FILE = Path(".bluebox") / "active_case.txt"
+PROJECT_HISTORY_FILE = Path(".bluebox") / "projects_history.txt"
+project_app = typer.Typer(
+    no_args_is_help=True,
+    help="Manage active BlueBox project context.",
+)
+tools_app = typer.Typer(
+    no_args_is_help=False,
+    help="Manage optional Blue Team/DFIR tool profiles.",
+)
+app.add_typer(project_app, name="project")
 app.add_typer(tools_app, name="tools")
+
+
+@tools_app.callback(invoke_without_command=True)
+def tools_main(ctx: typer.Context) -> None:
+    """Manage optional Blue Team/DFIR tool profiles."""
+    if ctx.invoked_subcommand is None:
+        console.print(ctx.get_help())
+        console.print("\n[bold]Note:[/bold] Use [cyan]tools install <profile>[/cyan] for dry-run suggestions.")
+        console.print("[bold]Note:[/bold] Use [cyan]tools install <profile> --apply[/cyan] to execute install commands.")
+        raise typer.Exit(code=0)
+
+
+def _active_project_file() -> Path:
+    return Path.cwd() / ACTIVE_PROJECT_FILE
+
+
+def _project_history_file() -> Path:
+    return Path.cwd() / PROJECT_HISTORY_FILE
+
+
+def _save_active_case(case_root: Path) -> None:
+    active_file = _active_project_file()
+    active_file.parent.mkdir(parents=True, exist_ok=True)
+    resolved_case_root = case_root.resolve()
+    active_file.write_text(str(resolved_case_root), encoding="utf-8")
+    _append_project_history(resolved_case_root)
+
+
+def _append_project_history(case_root: Path) -> None:
+    history_file = _project_history_file()
+    history_file.parent.mkdir(parents=True, exist_ok=True)
+
+    existing: list[str] = []
+    if history_file.is_file():
+        existing = [line.strip() for line in history_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    normalized = str(case_root.resolve())
+    updated = [normalized] + [entry for entry in existing if entry != normalized]
+    history_file.write_text("\n".join(updated[:50]) + "\n", encoding="utf-8")
+
+
+def _read_project_history() -> list[Path]:
+    history_file = _project_history_file()
+    if not history_file.is_file():
+        return []
+
+    entries = [line.strip() for line in history_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return [Path(entry).expanduser().resolve() for entry in entries]
+
+
+def _is_case_workspace(case_path: Path) -> bool:
+    return (case_path / "meta" / "solution_state.json").is_file()
+
+
+def _read_active_case() -> Path | None:
+    active_file = _active_project_file()
+    if not active_file.is_file():
+        return None
+
+    stored_path = active_file.read_text(encoding="utf-8").strip()
+    if not stored_path:
+        return None
+
+    return Path(stored_path).expanduser().resolve()
+
+
+def _resolve_case_path(case_path: Path | None, command_name: str) -> Path:
+    if case_path is not None:
+        return case_path.resolve()
+
+    cwd = Path.cwd()
+    if (cwd / "meta" / "solution_state.json").is_file():
+        return cwd.resolve()
+
+    candidate = _read_active_case()
+    if candidate is not None and candidate.exists():
+        return candidate
+
+    console.print(
+        "[red]Error:[/red] No active case found. Run [cyan]bluebox init[/cyan] first "
+        "or provide <case-path>."
+    )
+    console.print(f"Hint: [cyan]bluebox {command_name} <case-path>[/cyan]")
+    raise typer.Exit(code=1)
 
 
 @app.callback()
@@ -38,14 +133,150 @@ def version() -> None:
 
 
 @app.command()
+def start() -> None:
+    """Show onboarding guide, commands, and recommended workflow."""
+    message = """[bold]BlueBox Quick Start[/bold]
+
+[bold]1) Inicializa un caso[/bold]
+- Interactivo: [cyan]bluebox init[/cyan]
+- Script/CI: [cyan]bluebox init --name \"My Case\" --artifacts ./artifacts --title \"My Case\"[/cyan]
+
+[bold]2) Flujo recomendado por proyecto[/bold]
+- Después de [cyan]bluebox init[/cyan], BlueBox guarda el proyecto activo en [cyan].bluebox/active_case.txt[/cyan]
+- Puedes ejecutar sin ruta: [cyan]bluebox classify[/cyan], [cyan]validate[/cyan], [cyan]solve[/cyan], [cyan]status[/cyan], [cyan]finalize[/cyan]
+- También puedes pasar ruta explícita: [cyan]bluebox classify <case-path>[/cyan]
+
+[bold]3) Comandos principales[/bold]
+- [cyan]doctor[/cyan]: diagnóstico de entorno
+- [cyan]project show/set/list/clear[/cyan]: ver, cambiar, listar y limpiar proyecto activo
+- [cyan]tools list/check/install[/cyan]: perfiles DFIR/Blue Team opcionales
+- [cyan]version[/cyan]: versión instalada
+
+[bold]4) Compatibilidad base[/bold]
+- BlueBox es Python puro y se ejecuta en macOS, Linux y Windows con Python 3.12+.
+- Verifica tu entorno con [cyan]bluebox doctor[/cyan].
+
+[bold]5) Sobre entorno virtual y tools[/bold]
+- BlueBox puede ejecutarse dentro o fuera de un entorno virtual.
+- [cyan]tools install --apply[/cyan] ejecuta comandos del sistema (ej. brew/apt), no solo del venv.
+- En dry-run (sin [cyan]--apply[/cyan]) solo muestra lo que instalaría.
+
+[bold]Tip[/bold]: Usa [cyan]bluebox --help[/cyan] y [cyan]bluebox <comando> --help[/cyan] para ver opciones detalladas.
+"""
+    console.print(Panel.fit(message, title="bluebox start", border_style="cyan"))
+
+
+@project_app.command("show")
+def project_show() -> None:
+    """Show currently active project path."""
+    active_case = _read_active_case()
+    if active_case is None:
+        console.print("[red]Error:[/red] No active project set in current workspace.")
+        console.print("Hint: run [cyan]bluebox init[/cyan] or [cyan]bluebox project set <case-path>[/cyan].")
+        raise typer.Exit(code=1)
+
+    if not active_case.exists():
+        console.print(f"[yellow]Warning:[/yellow] Active project path no longer exists: {active_case}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[green]Active project:[/green] {active_case}")
+
+
+@project_app.command("set")
+def project_set(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+    """Set active project path for pathless command usage."""
+    resolved_case_path = case_path.expanduser().resolve()
+    if not _is_case_workspace(resolved_case_path):
+        console.print(f"[red]Error:[/red] Not a valid BlueBox case path: {resolved_case_path}")
+        console.print("Hint: expected file [cyan]meta/solution_state.json[/cyan].")
+        raise typer.Exit(code=1)
+
+    _save_active_case(resolved_case_path)
+    console.print(f"[green]Set active project:[/green] {resolved_case_path}")
+
+
+@project_app.command("clear")
+def project_clear() -> None:
+    """Clear active project pointer in current workspace."""
+    active_file = _active_project_file()
+    if not active_file.is_file():
+        console.print("[yellow]No active project to clear.[/yellow]")
+        return
+
+    active_file.unlink()
+    console.print("[green]Cleared active project.[/green]")
+
+
+@project_app.command("list")
+def project_list(
+    existing_only: bool = typer.Option(
+        False,
+        "--existing-only",
+        help="Show only projects that currently exist on disk.",
+    ),
+) -> None:
+    """List known projects from workspace history."""
+    projects = _read_project_history()
+    if not projects:
+        console.print("[yellow]No projects in history yet.[/yellow]")
+        console.print("Hint: run [cyan]bluebox init[/cyan] or [cyan]bluebox project set <case-path>[/cyan].")
+        return
+
+    active_case = _read_active_case()
+    if existing_only:
+        projects = [project_path for project_path in projects if project_path.exists()]
+
+    if not projects:
+        console.print("[yellow]No existing projects found in history.[/yellow]")
+        return
+
+    console.print("[bold]Known projects:[/bold]")
+    for project_path in projects:
+        is_active = active_case is not None and project_path == active_case
+        exists = project_path.exists()
+        status = "active" if is_active else "known"
+        color = "green" if exists else "yellow"
+        if not exists:
+            status = f"{status}, missing"
+        console.print(f"- [{color}]{project_path}[/{color}] ({status})")
+
+
+@app.command()
 def init(
-    challenge_name: str = typer.Argument(..., help="Raw challenge name."),
-    artifacts: Path = typer.Option(..., "--artifacts", help="Artifacts path (file or directory)."),
-    title: str = typer.Option(..., "--title", help="Human-readable challenge title."),
-    context: str = typer.Option("", "--context", help="Initial case context."),
-    base_path: Path = typer.Option(Path("."), "--base-path", help="Directory where the case folder will be created."),
+    challenge_name: str | None = typer.Option(None, "--name", "-n", help="Raw challenge name."),
+    artifacts: Path | None = typer.Option(None, "--artifacts", help="Artifacts path (file or directory)."),
+    title: str | None = typer.Option(None, "--title", help="Human-readable challenge title."),
+    context: str | None = typer.Option(None, "--context", help="Initial case context."),
+    base_path: Path | None = typer.Option(
+        None,
+        "--base-path",
+        help="Directory where the case folder will be created.",
+    ),
 ) -> None:
     """Initialize a complete case workspace from artifacts."""
+    interactive_mode = challenge_name is None or artifacts is None or title is None
+
+    if challenge_name is None or not challenge_name.strip():
+        challenge_name = typer.prompt("Challenge name")
+
+    if artifacts is None:
+        artifacts = Path(typer.prompt("Artifacts path (file or directory)")).expanduser()
+
+    if title is None:
+        title = typer.prompt("Case title")
+
+    if context is None:
+        if interactive_mode:
+            context = typer.prompt("Initial case context (optional)", default="", show_default=False)
+        else:
+            context = ""
+
+    if base_path is None:
+        if interactive_mode:
+            base_path = Path(typer.prompt("Base path", default=".", show_default=True)).expanduser()
+        else:
+            base_path = Path(".")
+
     try:
         case_root = initialize_case_from_artifacts(
             base_path=base_path.resolve(),
@@ -59,12 +290,17 @@ def init(
         raise typer.Exit(code=1) from error
 
     console.print(f"[green]Initialized case:[/green] {case_root}")
+    _save_active_case(case_root)
+    console.print(f"[cyan]Active project:[/cyan] {case_root}")
 
 
 @app.command()
-def validate(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+def validate(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
     """Validate case workspace structure and metadata."""
-    report = validate_case_structure(case_path.resolve())
+    resolved_case_path = _resolve_case_path(case_path, "validate")
+    report = validate_case_structure(resolved_case_path)
 
     if report.is_valid:
         console.print(f"[green]Validation passed:[/green] {report.case_path}")
@@ -82,10 +318,13 @@ def validate(case_path: Path = typer.Argument(..., help="Path to case workspace.
 
 
 @app.command()
-def classify(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+def classify(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
     """Classify a case and propose initial analysis direction."""
+    resolved_case_path = _resolve_case_path(case_path, "classify")
     try:
-        outcome = classify_case(case_path.resolve())
+        outcome = classify_case(resolved_case_path)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
         console.print(f"[red]Error:[/red] {error}")
         raise typer.Exit(code=1) from error
@@ -100,13 +339,14 @@ def classify(case_path: Path = typer.Argument(..., help="Path to case workspace.
 
 @app.command()
 def solve(
-    case_path: Path = typer.Argument(..., help="Path to case workspace."),
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
     no_launch: bool = typer.Option(False, "--no-launch", help="Prepare solve context without launching Codex CLI."),
 ) -> None:
     """Prepare and launch Codex CLI for case solving."""
+    resolved_case_path = _resolve_case_path(case_path, "solve")
     try:
         outcome = prepare_and_launch_solve(
-            case_path.resolve(),
+            resolved_case_path,
             launch_codex=not no_launch,
         )
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
@@ -123,10 +363,13 @@ def solve(
 
 
 @app.command()
-def status(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+def status(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
     """Show a concise operational status for a case."""
+    resolved_case_path = _resolve_case_path(case_path, "status")
     try:
-        snapshot = get_case_status(case_path.resolve())
+        snapshot = get_case_status(resolved_case_path)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
         console.print(f"[red]Error:[/red] {error}")
         raise typer.Exit(code=1) from error
@@ -156,7 +399,7 @@ def doctor() -> None:
 
 @app.command()
 def finalize(
-    case_path: Path = typer.Argument(..., help="Path to case workspace."),
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
     allow_incomplete: bool = typer.Option(
         False,
         "--allow-incomplete",
@@ -164,8 +407,9 @@ def finalize(
     ),
 ) -> None:
     """Generate final writeup from accumulated case documentation."""
+    resolved_case_path = _resolve_case_path(case_path, "finalize")
     try:
-        outcome = finalize_case(case_path.resolve(), allow_incomplete=allow_incomplete)
+        outcome = finalize_case(resolved_case_path, allow_incomplete=allow_incomplete)
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
         console.print(f"[red]Error:[/red] {error}")
         raise typer.Exit(code=1) from error
@@ -215,6 +459,11 @@ def tools_install(
     apply: bool = typer.Option(False, "--apply", help="Execute install commands instead of dry-run."),
 ) -> None:
     """Install missing tools for a profile (dry-run by default)."""
+    if apply:
+        console.print("[yellow]Applying system install commands for missing tools...[/yellow]")
+    else:
+        console.print("[cyan]Dry-run mode:[/cyan] no install commands are executed.")
+
     try:
         results = install_profile(profile, apply=apply)
     except ValueError as error:
@@ -222,18 +471,24 @@ def tools_install(
         raise typer.Exit(code=1) from error
 
     failures = 0
+    pending = 0
     for result in results:
         if result.success:
             console.print(f"- {result.name}: [green]OK[/green] ({result.message})")
             continue
 
-        failures += 1
+        if apply:
+            failures += 1
+        else:
+            pending += 1
         console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
         if result.command:
             console.print(f"    command: {result.command}")
 
-    if failures > 0:
+    if apply and failures > 0:
         raise typer.Exit(code=1)
+    if not apply and pending > 0:
+        console.print("[bold]Tip:[/bold] Run again with [cyan]--apply[/cyan] to execute suggested commands.")
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ Esta guía resume el uso operativo de BlueBox de punta a punta.
 ## 1) Requisitos
 
 - Python `>=3.12`
-- Entorno Unix-like (macOS/Linux)
+- Entorno de consola en macOS, Linux o Windows
 - Repositorio clonado localmente
 
 ## 2) Instalación local
@@ -21,6 +21,7 @@ python -m pip install .
 
 ```bash
 bluebox --help
+bluebox start
 bluebox version
 bluebox doctor
 ```
@@ -29,8 +30,16 @@ bluebox doctor
 
 ### 4.1 Inicializar caso
 
+Modo interactivo (recomendado):
+
 ```bash
-bluebox init "Suspicious Beaconing" \
+bluebox init
+```
+
+Modo no interactivo (script/CI):
+
+```bash
+bluebox init --name "Suspicious Beaconing" \
   --artifacts ./input_artifacts \
   --title "Suspicious Beaconing" \
   --context "Initial triage context"
@@ -40,11 +49,12 @@ Resultado esperado:
 - Carpeta de caso sanitizada (ej. `suspicious-beaconing/`)
 - Estructura estándar de `notes/`, `meta/`, `.codex/`
 - `hashes.json`, `artifacts_inventory.json`, `solution_state.json`
+- Proyecto activo guardado en `.bluebox/active_case.txt`
 
 ### 4.2 Clasificar caso
 
 ```bash
-bluebox classify ./suspicious-beaconing
+bluebox classify
 ```
 
 Resultado esperado:
@@ -55,7 +65,7 @@ Resultado esperado:
 ### 4.3 Validar integridad
 
 ```bash
-bluebox validate ./suspicious-beaconing
+bluebox validate
 ```
 
 Resultado esperado:
@@ -65,13 +75,13 @@ Resultado esperado:
 ### 4.4 Preparar solve con Codex
 
 ```bash
-bluebox solve ./suspicious-beaconing --no-launch
+bluebox solve --no-launch
 ```
 
 Modo real (si tienes `codex` instalado):
 
 ```bash
-bluebox solve ./suspicious-beaconing
+bluebox solve
 ```
 
 Resultado esperado:
@@ -83,7 +93,7 @@ Resultado esperado:
 ### 4.5 Consultar estado operativo
 
 ```bash
-bluebox status ./suspicious-beaconing
+bluebox status
 ```
 
 Muestra:
@@ -97,13 +107,13 @@ Muestra:
 Caso resuelto (`status=solved`):
 
 ```bash
-bluebox finalize ./suspicious-beaconing
+bluebox finalize
 ```
 
 Caso no resuelto (incompleto explícito):
 
 ```bash
-bluebox finalize ./suspicious-beaconing --allow-incomplete
+bluebox finalize --allow-incomplete
 ```
 
 Resultado esperado:
@@ -115,15 +125,15 @@ Resultado esperado:
 Puedes usar los artefactos sintéticos incluidos:
 
 ```bash
-bluebox init "Safe Demo" \
+bluebox init --name "Safe Demo" \
   --artifacts ./examples/safe-demo/artifacts \
   --title "Safe Demo"
 
-bluebox classify ./safe-demo
-bluebox validate ./safe-demo
-bluebox solve ./safe-demo --no-launch
-bluebox status ./safe-demo
-bluebox finalize ./safe-demo --allow-incomplete
+bluebox classify
+bluebox validate
+bluebox solve --no-launch
+bluebox status
+bluebox finalize --allow-incomplete
 ```
 
 ## 6) Comandos de referencia rápida
@@ -135,12 +145,17 @@ bluebox tools list
 bluebox tools check base
 bluebox tools install network
 bluebox tools install network --apply
-bluebox init <name> --artifacts <path> --title <title>
-bluebox classify <case-path>
-bluebox validate <case-path>
-bluebox solve <case-path> [--no-launch]
-bluebox status <case-path>
-bluebox finalize <case-path> [--allow-incomplete]
+bluebox project show
+bluebox project set <case-path>
+bluebox project list
+bluebox project list --existing-only
+bluebox project clear
+bluebox init --name <name> --artifacts <path> --title <title>
+bluebox classify [<case-path>]
+bluebox validate [<case-path>]
+bluebox solve [<case-path>] [--no-launch]
+bluebox status [<case-path>]
+bluebox finalize [<case-path>] [--allow-incomplete]
 ```
 
 ## 6.1 Perfiles de herramientas opcionales
@@ -167,6 +182,8 @@ bluebox tools install network      # dry-run (solo sugerencias)
 bluebox tools install network --apply
 ```
 
+Nota: con `--apply`, BlueBox ejecuta comandos de instalación del sistema (por ejemplo `brew` o `apt`).
+
 ## 7) Errores comunes
 
 - `Case validation failed ...`
@@ -184,3 +201,12 @@ bluebox tools install network --apply
 - Mantener ejemplos sintéticos en `examples/`.
 - Usar commits pequeños por fase.
 - Ejecutar `pytest -q` antes de merge/tag.
+
+## 9) Compatibilidad
+
+- BlueBox funciona sobre Python `3.12+` en macOS, Linux y Windows.
+- Para validar tu host actual (Python, plataforma y binarios requeridos), ejecuta:
+
+```bash
+bluebox doctor
+```
