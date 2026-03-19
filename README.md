@@ -2,6 +2,25 @@
 
 `BlueBox` es una herramienta CLI en Python para flujos blue team/DFIR por fases.
 
+## Quickstart (30 segundos)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install .
+bluebox --help
+```
+
+Flujo mínimo de prueba:
+
+```bash
+bluebox doctor
+bluebox init "Safe Demo" --artifacts ./examples/safe-demo/artifacts --title "Safe Demo"
+bluebox classify ./safe-demo
+bluebox validate ./safe-demo
+```
+
 ## Estado actual
 
 - Proyecto inicial con CLI funcional.
