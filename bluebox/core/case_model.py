@@ -1,0 +1,54 @@
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+from pydantic import BaseModel, Field
+
+
+REQUIRED_CASE_DIRECTORIES: tuple[str, ...] = (
+    "original",
+    "working",
+    "derived/extracted",
+    "derived/parsed",
+    "derived/timelines",
+    "notes",
+    "meta",
+    ".codex",
+)
+
+REQUIRED_CASE_FILES: tuple[str, ...] = (
+    "notes/writeup.md",
+    "notes/findings.md",
+    "notes/changelog.md",
+    "notes/hypotheses.md",
+    "notes/writeup_final.md",
+    "meta/solution_state.json",
+    "meta/artifacts_inventory.json",
+    "meta/hashes.json",
+    "meta/evidence_summary.json",
+    ".codex/prompt.txt",
+    ".codex/context.md",
+)
+
+
+class CaseWorkspaceSpec(BaseModel):
+    raw_name: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    context: str = ""
+
+    @property
+    def case_name(self) -> str:
+        return sanitize_case_name(self.raw_name)
+
+
+def sanitize_case_name(name: str) -> str:
+    normalized = name.strip().lower()
+    normalized = re.sub(r"[^a-z0-9]+", "-", normalized)
+    normalized = re.sub(r"-+", "-", normalized)
+    return normalized.strip("-") or "case"
+
+
+def ensure_case_structure(case_root: Path) -> None:
+    for relative_dir in REQUIRED_CASE_DIRECTORIES:
+        (case_root / relative_dir).mkdir(parents=True, exist_ok=True)
