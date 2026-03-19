@@ -3,7 +3,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from bluebox.core import initialize_case_from_artifacts
+from bluebox.core import initialize_case_from_artifacts, validate_case_structure
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -45,6 +45,26 @@ def init(
         raise typer.Exit(code=1) from error
 
     console.print(f"[green]Initialized case:[/green] {case_root}")
+
+
+@app.command()
+def validate(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+    """Validate case workspace structure and metadata."""
+    report = validate_case_structure(case_path.resolve())
+
+    if report.is_valid:
+        console.print(f"[green]Validation passed:[/green] {report.case_path}")
+    else:
+        console.print(f"[red]Validation failed:[/red] {report.case_path}")
+
+    for warning in report.warnings:
+        console.print(f"[yellow]Warning:[/yellow] {warning}")
+
+    for error in report.errors:
+        console.print(f"[red]Error:[/red] {error}")
+
+    if not report.is_valid:
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
