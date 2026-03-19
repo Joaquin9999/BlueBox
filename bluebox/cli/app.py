@@ -46,9 +46,14 @@ tools_app = typer.Typer(
     no_args_is_help=False,
     help="Manage optional Blue Team/DFIR tool profiles.",
 )
+recipe_app = typer.Typer(
+    no_args_is_help=True,
+    help="Run compact analysis recipes that generate report files.",
+)
 app.add_typer(project_app, name="project")
 app.add_typer(cases_app, name="cases")
 app.add_typer(tools_app, name="tools")
+app.add_typer(recipe_app, name="recipe")
 
 
 @tools_app.callback(invoke_without_command=True)
@@ -446,6 +451,162 @@ def _write_tooling_status_report(
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return report_path
+
+
+def _iter_case_artifact_files(case_path: Path) -> list[Path]:
+    manifest_path = case_path / "challenge" / "manifest.json"
+    if not manifest_path.is_file():
+        return []
+
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+    source_root_value = payload.get("source_path")
+    artifacts = payload.get("artifacts", [])
+    if not isinstance(source_root_value, str) or not isinstance(artifacts, list):
+        return []
+
+    source_root = Path(source_root_value).expanduser()
+    files: list[Path] = []
+    for artifact in artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        rel_path = artifact.get("path")
+        if not isinstance(rel_path, str) or not rel_path:
+            continue
+
+        candidate = (source_root / rel_path).resolve()
+        if candidate.is_file():
+            files.append(candidate)
+            continue
+
+        fallback = (case_path / "original" / rel_path).resolve()
+        if fallback.is_file():
+            files.append(fallback)
+
+    return files
+
+
+def _write_recipe_report(case_path: Path, file_name: str, content: str) -> Path:
+    reports_dir = case_path / "work" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / file_name
+    report_path.write_text(content if content.endswith("\n") else f"{content}\n", encoding="utf-8")
+    return report_path
+
+
+def _render_recipe_report(
+    *,
+    recipe_name: str,
+    case_path: Path,
+    title: str,
+    selected_files: list[Path],
+    notes: list[str],
+) -> str:
+    lines = [
+        f"# {title}",
+        "",
+        f"- Recipe: `{recipe_name}`",
+        f"- Case: `{case_path.name}`",
+        f"- Generated at: `{datetime.now(UTC).isoformat().replace('+00:00', 'Z')}`",
+        "",
+        "## Candidate artifacts",
+    ]
+    if selected_files:
+        lines.extend([f"- `{path}`" for path in selected_files[:50]])
+    else:
+        lines.append("- none detected")
+
+    lines.append("")
+    lines.append("## Notes")
+    lines.extend([f"- {note}" for note in notes] if notes else ["- No additional notes."])
+    lines.append("")
+    lines.append("## Next action")
+    lines.append(f"- {_compute_next_action(case_path)}")
+    return "\n".join(lines)
+
+
+def _run_recipe(case_path: Path, recipe_name: str) -> Path:
+    artifacts = _iter_case_artifact_files(case_path)
+    lower_name = recipe_name.strip().lower()
+
+    if lower_name == "pcap-overview":
+        selected = [path for path in artifacts if path.suffix.lower() in {".pcap", ".pcapng"}]
+        content = _render_recipe_report(
+            recipe_name=lower_name,
+            case_path=case_path,
+            title="PCAP Overview",
+            selected_files=selected,
+            notes=[
+                "Focus on DNS, HTTP, and unusual beaconing intervals.",
+                "If `tshark` is installed, add protocol and endpoint counts.",
+            ],
+        )
+        return _write_recipe_report(case_path, "pcap_summary.md", content)
+
+    if lower_name == "evtx-overview":
+        selected = [path for path in artifacts if path.suffix.lower() == ".evtx"]
+        content = _render_recipe_report(
+            recipe_name=lower_name,
+            case_path=case_path,
+            title="EVTX Overview",
+            selected_files=selected,
+            notes=[
+                "Prioritize security, Sysmon, and PowerShell-related channels.",
+                "If Chainsaw/Hayabusa is available, record top suspicious detections.",
+            ],
+        )
+        return _write_recipe_report(case_path, "evtx_summary.md", content)
+
+    if lower_name == "metadata-scan":
+        selected = artifacts
+        content = _render_recipe_report(
+            recipe_name=lower_name,
+            case_path=case_path,
+            title="Metadata Scan",
+            selected_files=selected,
+            notes=[
+                "Extract high-signal metadata first (timestamps, authors, tooling hints).",
+                "Use compact findings and avoid raw-dump style notes.",
+            ],
+        )
+        return _write_recipe_report(case_path, "metadata_summary.md", content)
+
+    if lower_name == "strings-triage":
+        selected = [
+            path
+            for path in artifacts
+            if path.suffix.lower() in {".bin", ".exe", ".dll", ".dat", ".elf", ".so", ".txt", ".log"}
+        ]
+        content = _render_recipe_report(
+            recipe_name=lower_name,
+            case_path=case_path,
+            title="Strings Triage",
+            selected_files=selected,
+            notes=[
+                "Search for URLs, domains, file paths, and command fragments.",
+                "Promote only confirmed high-signal hits into agent/context.md.",
+            ],
+        )
+        return _write_recipe_report(case_path, "strings_hotspots.md", content)
+
+    if lower_name == "quick-yara-scan":
+        selected = artifacts
+        content = _render_recipe_report(
+            recipe_name=lower_name,
+            case_path=case_path,
+            title="Quick YARA Scan",
+            selected_files=selected,
+            notes=[
+                "Run only curated rule sets to keep output manageable.",
+                "Store noisy raw output outside context and summarize key matches only.",
+            ],
+        )
+        return _write_recipe_report(case_path, "yara_quick_scan.md", content)
+
+    raise ValueError(f"Unknown recipe: {recipe_name}")
 
 
 @app.callback()
@@ -1582,6 +1743,27 @@ def tools_install(
         raise typer.Exit(code=1)
     if not apply and pending > 0:
         console.print("[bold]Tip:[/bold] Run again with [cyan]--apply[/cyan] to execute suggested commands.")
+
+
+@recipe_app.command("run")
+def recipe_run(
+    recipe_name: str = typer.Argument(..., help="Recipe name (pcap-overview, evtx-overview, metadata-scan, strings-triage, quick-yara-scan)."),
+    case_path: Path | None = typer.Option(None, "--case-path", help="Case workspace (optional if project is active)."),
+) -> None:
+    """Run a compact recipe and write report output to work/reports/."""
+    resolved_case = _resolve_case_path(case_path, "recipe run")
+    if not _is_case_workspace(resolved_case):
+        console.print(f"[red]Error:[/red] Not a valid case workspace: {resolved_case}")
+        raise typer.Exit(code=1)
+
+    try:
+        report_path = _run_recipe(resolved_case, recipe_name)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        console.print("Hint: use one of pcap-overview, evtx-overview, metadata-scan, strings-triage, quick-yara-scan")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[green]Recipe report generated:[/green] {report_path}")
 
 
 if __name__ == "__main__":
