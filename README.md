@@ -8,6 +8,7 @@
 - Comando disponible: `bluebox --help`.
 - Flujo de trabajo por ramas de fase activo.
 - Modelo de workspace de caso y templates base implementados.
+- Comando `bluebox init` implementado para inicializar casos desde artefactos.
 
 ## Qué contiene el repositorio
 
@@ -42,7 +43,18 @@ pip install -e .
 ```bash
 bluebox --help
 bluebox version
+bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
 ```
+
+## Qué hace `bluebox init`
+
+- Crea el folder del caso con nombre sanitizado.
+- Genera la estructura canónica de carpetas y archivos de notas/meta.
+- Copia artefactos a `original/` y `working/` (sin modificar los originales).
+- Calcula hashes SHA-256 de `original/` y escribe `meta/hashes.json`.
+- Construye inventario en `meta/artifacts_inventory.json`.
+- Inicializa `meta/solution_state.json` con estado `initialized`.
+- Escribe la primera entrada en `notes/changelog.md`.
 
 ## Ejecución de pruebas
 
