@@ -219,3 +219,29 @@ def test_new_command_rejects_artifacts_equal_base_path(tmp_path: Path) -> None:
     assert "Artifacts path must be different from base path" in result.stdout
 
 
+def test_new_generates_default_agent_prompt_content(tmp_path: Path) -> None:
+    artifacts_dir = tmp_path / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (artifacts_dir / "sample.log").write_text("demo", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "new",
+            "--name",
+            "Prompt Case",
+            "--artifacts",
+            str(artifacts_dir),
+            "--title",
+            "Prompt Case",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    prompt_text = (tmp_path / "cases" / "prompt-case" / "agent" / "prompt.md").read_text(encoding="utf-8")
+    assert "most wanted hacker" in prompt_text
+    assert "You are NOT allowed to search the internet for" in prompt_text
+
+
