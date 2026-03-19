@@ -411,6 +411,43 @@ def _build_case_summary_text(case_path: Path) -> str:
     return "\n".join(sections)
 
 
+def _write_tooling_status_report(
+    profile: str,
+    results: list,
+    *,
+    apply: bool,
+) -> Path | None:
+    active_case = _read_active_case()
+    if active_case is None or not _is_case_workspace(active_case):
+        return None
+
+    available: list[str] = []
+    missing: list[str] = []
+    for result in results:
+        if result.success:
+            available.append(result.name)
+        else:
+            missing.append(result.name)
+
+    lines = [
+        f"# Tooling Status - {profile}",
+        "",
+        f"- Mode: {'apply' if apply else 'dry-run'}",
+        f"- Generated at: {datetime.now(UTC).isoformat().replace('+00:00', 'Z')}",
+        "",
+        "## Available",
+    ]
+    lines.extend([f"- {name}" for name in available] or ["- none"])
+    lines.append("")
+    lines.append("## Missing")
+    lines.extend([f"- {name}" for name in missing] or ["- none"])
+
+    report_path = active_case / "work" / "reports" / "tooling_status.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return report_path
+
+
 @app.callback()
 def main() -> None:
     """BlueBox CLI."""
@@ -467,6 +504,8 @@ def start() -> None:
 def wizard(
     base_path: Path = typer.Option(Path("."), "--base-path", help="Workspace root for folder bootstrap."),
     create_case: bool = typer.Option(False, "--create-case", help="Create a case during wizard flow."),
+    import_source: Path | None = typer.Option(None, "--import-source", help="Optional challenge file/dir to import into inbox."),
+    import_name: str | None = typer.Option(None, "--import-name", help="Optional inbox folder/file name for imported challenge."),
     challenge_name: str | None = typer.Option(None, "--name", help="Challenge name when --create-case is used."),
     artifacts: Path | None = typer.Option(None, "--artifacts", help="Artifacts path when --create-case is used."),
     title: str | None = typer.Option(None, "--title", help="Case title when --create-case is used."),
@@ -492,6 +531,30 @@ def wizard(
         folder_path.mkdir(parents=True, exist_ok=True)
         console.print(f"- ensured: {folder_path}")
 
+    imported_artifacts: Path | None = None
+    if import_source is not None:
+        resolved_import_source = import_source.expanduser().resolve()
+        if not resolved_import_source.exists():
+            console.print(f"[red]Error:[/red] Import source not found: {resolved_import_source}")
+            raise typer.Exit(code=1)
+
+        inbox_dir = resolved_base / "inbox"
+        target_name = (import_name or resolved_import_source.name).strip()
+        if not target_name:
+            target_name = "challenge-import"
+        destination = inbox_dir / target_name
+
+        if destination.exists():
+            console.print(f"[red]Error:[/red] Import target already exists: {destination}")
+            raise typer.Exit(code=1)
+
+        if resolved_import_source.is_dir():
+            shutil.copytree(resolved_import_source, destination)
+        else:
+            shutil.copy2(resolved_import_source, destination)
+        imported_artifacts = destination
+        console.print(f"- imported challenge to: {destination}")
+
     current_dir = Path.cwd()
     try:
         os_changed = False
@@ -512,7 +575,11 @@ def wizard(
 
     if create_case:
         selected_name = challenge_name or typer.prompt("Challenge name")
-        selected_artifacts = artifacts or Path(typer.prompt("Artifacts path (file or directory)")).expanduser()
+        selected_artifacts = artifacts
+        if selected_artifacts is None and imported_artifacts is not None:
+            selected_artifacts = imported_artifacts
+        if selected_artifacts is None:
+            selected_artifacts = Path(typer.prompt("Artifacts path (file or directory)")).expanduser()
         selected_title = title or typer.prompt("Case title")
         selected_context = context if context is not None else typer.prompt(
             "Initial case context (optional)", default="", show_default=False
@@ -582,26 +649,43 @@ def setup(
     mode: str | None = typer.Option(
         None,
         "--mode",
-        help="Setup mode: 'all' (all profiles) or 'tool' (single tool).",
+        help="Setup mode: 'all' (all profiles), 'profile' (one profile), or 'tool' (single tool).",
     ),
     tool: str | None = typer.Option(
         None,
         "--tool",
         help="Tool name when mode is 'tool'.",
     ),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help="Profile name shortcut (equivalent to --mode all for 'all', otherwise installs one profile).",
+    ),
     apply: bool = typer.Option(False, "--apply", help="Execute install commands instead of dry-run."),
 ) -> None:
     """Run initial setup: install all tool profiles or one specific tool."""
     selected_mode = (mode or "").strip().lower()
+    selected_profile = (profile or "").strip().lower()
+
+    if not selected_mode and selected_profile:
+        selected_mode = "all" if selected_profile == "all" else "profile"
+
     if not selected_mode:
         console.print("[bold]Setup options:[/bold]")
         console.print("1) Install all profiles")
-        console.print("2) Install one specific tool")
+        console.print("2) Install one specific profile")
+        console.print("3) Install one specific tool")
         option = typer.prompt("Choose option", default="1")
-        selected_mode = "all" if option.strip() == "1" else "tool"
+        normalized_option = option.strip()
+        if normalized_option == "1":
+            selected_mode = "all"
+        elif normalized_option == "2":
+            selected_mode = "profile"
+        else:
+            selected_mode = "tool"
 
-    if selected_mode not in {"all", "tool"}:
-        console.print("[red]Error:[/red] Invalid mode. Use --mode all or --mode tool.")
+    if selected_mode not in {"all", "profile", "tool"}:
+        console.print("[red]Error:[/red] Invalid mode. Use --mode all, --mode profile, or --mode tool.")
         raise typer.Exit(code=1)
 
     if selected_mode == "all":
@@ -628,6 +712,40 @@ def setup(
                 console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
                 if result.command:
                     console.print(f"    command: {result.command}")
+
+        if apply and failures > 0:
+            raise typer.Exit(code=1)
+        if not apply and pending > 0:
+            console.print("\n[bold]Tip:[/bold] Run with [cyan]--apply[/cyan] to execute commands.")
+        return
+
+    if selected_mode == "profile":
+        if not selected_profile:
+            selected_profile = typer.prompt("Profile name").strip().lower()
+        console.print(f"[bold]Setup mode:[/bold] install profile [cyan]{selected_profile}[/cyan]")
+        try:
+            results = install_profile(selected_profile, apply=apply)
+        except ValueError as error:
+            console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(code=1) from error
+
+        failures = 0
+        pending = 0
+        for result in results:
+            if result.success:
+                console.print(f"- {result.name}: [green]OK[/green] ({result.message})")
+                continue
+            if apply:
+                failures += 1
+            else:
+                pending += 1
+            console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
+            if result.command:
+                console.print(f"    command: {result.command}")
+
+        report_path = _write_tooling_status_report(selected_profile, results, apply=apply)
+        if report_path is not None:
+            console.print(f"[cyan]Tooling report saved:[/cyan] {report_path}")
 
         if apply and failures > 0:
             raise typer.Exit(code=1)
@@ -1386,6 +1504,13 @@ def tools_list() -> None:
             console.print(f"  - {spec.name}: {spec.description}")
 
 
+@tools_app.command("profiles")
+def tools_profiles() -> None:
+    """List profile names only (product-style quick view)."""
+    for profile_name in list_profiles().keys():
+        console.print(profile_name)
+
+
 @tools_app.command("check")
 def tools_check(profile: str = typer.Argument(..., help="Profile to check.")) -> None:
     """Check whether tools in a profile are available."""
@@ -1428,18 +1553,30 @@ def tools_install(
 
     failures = 0
     pending = 0
+    available_tools: list[str] = []
+    missing_tools: list[str] = []
     for result in results:
         if result.success:
             console.print(f"- {result.name}: [green]OK[/green] ({result.message})")
+            available_tools.append(result.name)
             continue
 
         if apply:
             failures += 1
         else:
             pending += 1
+        missing_tools.append(result.name)
         console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
         if result.command:
             console.print(f"    command: {result.command}")
+
+    console.print(f"\n[bold]Installed profile:[/bold] {profile}")
+    console.print(f"[bold]Available:[/bold] {', '.join(available_tools) if available_tools else 'none'}")
+    console.print(f"[bold]Missing:[/bold] {', '.join(missing_tools) if missing_tools else 'none'}")
+
+    report_path = _write_tooling_status_report(profile, results, apply=apply)
+    if report_path is not None:
+        console.print(f"[bold]Report saved to:[/bold] {report_path}")
 
     if apply and failures > 0:
         raise typer.Exit(code=1)

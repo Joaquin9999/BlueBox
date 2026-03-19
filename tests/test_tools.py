@@ -11,7 +11,7 @@ def test_tools_list_outputs_profiles() -> None:
 
     assert result.exit_code == 0
     assert "base" in result.stdout
-    assert "network" in result.stdout
+    assert "network" in result.stdout or "pcap" in result.stdout
 
 
 def test_tools_check_unknown_profile_fails() -> None:

@@ -152,11 +152,15 @@ bluebox finalize --allow-incomplete
 bluebox version
 bluebox doctor
 bluebox setup --mode all
+bluebox setup --profile all
 bluebox setup --mode tool --tool jq
 bluebox tools list
+bluebox tools profiles
 bluebox tools check base
-bluebox tools install network
-bluebox tools install network --apply
+bluebox tools install pcap
+bluebox tools install pcap --apply
+bluebox tools install ctf-blue --apply
+bluebox tools install all --apply
 bluebox project show
 bluebox project set <case-path>
 bluebox project list
@@ -208,14 +212,16 @@ Primero revisa qué tienes instalado:
 
 ```bash
 bluebox tools list
-bluebox tools check network
+bluebox tools profiles
+bluebox tools check pcap
 ```
 
 Si quieres instalar faltantes:
 
 ```bash
-bluebox tools install network      # dry-run (solo sugerencias)
-bluebox tools install network --apply
+bluebox tools install pcap      # dry-run (solo sugerencias)
+bluebox tools install pcap --apply
+bluebox tools install all --apply
 ```
 
 Nota: con `--apply`, BlueBox ejecuta comandos de instalación del sistema (por ejemplo `brew` o `apt`).
