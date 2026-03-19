@@ -4,7 +4,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from bluebox.core import classify_case, initialize_case_from_artifacts, validate_case_structure
+from bluebox.core import classify_case, initialize_case_from_artifacts, prepare_and_launch_solve, validate_case_structure
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -83,6 +83,30 @@ def classify(case_path: Path = typer.Argument(..., help="Path to case workspace.
         "[cyan]Subcategories:[/cyan] "
         + (", ".join(outcome.subcategories) if outcome.subcategories else "none")
     )
+
+
+@app.command()
+def solve(
+    case_path: Path = typer.Argument(..., help="Path to case workspace."),
+    no_launch: bool = typer.Option(False, "--no-launch", help="Prepare solve context without launching Codex CLI."),
+) -> None:
+    """Prepare and launch Codex CLI for case solving."""
+    try:
+        outcome = prepare_and_launch_solve(
+            case_path.resolve(),
+            launch_codex=not no_launch,
+        )
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[green]Prepared solve context:[/green] {outcome.context_path}")
+    console.print(f"[green]Prepared solve prompt:[/green] {outcome.prompt_path}")
+
+    if no_launch:
+        console.print("[yellow]Codex launch skipped (--no-launch).[/yellow]")
+    elif outcome.codex_return_code is not None:
+        console.print(f"[cyan]Codex exit code:[/cyan] {outcome.codex_return_code}")
 
 
 if __name__ == "__main__":
