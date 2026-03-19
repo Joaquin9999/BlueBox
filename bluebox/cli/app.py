@@ -4,7 +4,14 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from bluebox.core import classify_case, initialize_case_from_artifacts, prepare_and_launch_solve, validate_case_structure
+from bluebox.core import (
+    build_doctor_report,
+    classify_case,
+    get_case_status,
+    initialize_case_from_artifacts,
+    prepare_and_launch_solve,
+    validate_case_structure,
+)
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -107,6 +114,38 @@ def solve(
         console.print("[yellow]Codex launch skipped (--no-launch).[/yellow]")
     elif outcome.codex_return_code is not None:
         console.print(f"[cyan]Codex exit code:[/cyan] {outcome.codex_return_code}")
+
+
+@app.command()
+def status(case_path: Path = typer.Argument(..., help="Path to case workspace.")) -> None:
+    """Show a concise operational status for a case."""
+    try:
+        snapshot = get_case_status(case_path.resolve())
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[bold]Case:[/bold] {snapshot.case_name}")
+    console.print(f"[bold]Title:[/bold] {snapshot.title}")
+    console.print(f"[bold]Status:[/bold] {snapshot.status}")
+    console.print(f"[bold]Category:[/bold] {snapshot.category or 'unclassified'}")
+    console.print(f"[bold]Artifacts:[/bold] {snapshot.artifact_count}")
+    console.print(f"[bold]Active hypotheses:[/bold] {snapshot.active_hypotheses_count}")
+    console.print(f"[bold]Latest update:[/bold] {snapshot.latest_update or 'none'}")
+
+
+@app.command()
+def doctor() -> None:
+    """Run environment diagnostics for BlueBox operators."""
+    report = build_doctor_report()
+
+    console.print(f"[bold]Python:[/bold] {report.python_version}")
+    console.print(f"[bold]Platform:[/bold] {report.platform_info}")
+
+    for check in report.checks:
+        status_text = "OK" if check.available else "MISSING"
+        color = "green" if check.available else "red"
+        console.print(f"[bold]{check.name}:[/bold] [{color}]{status_text}[/{color}] - {check.detail}")
 
 
 if __name__ == "__main__":
