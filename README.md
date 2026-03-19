@@ -1,8 +1,23 @@
 # BlueBox
 
-`BlueBox` es una herramienta CLI en Python para flujos blue team/DFIR por fases.
+`BlueBox` es una CLI para **CTFs** (especialmente forense/Blue Team) que te ayuda a:
 
-## Quickstart (30 segundos)
+- organizar casos de forma reproducible,
+- preparar un entorno de trabajo con herramientas Blue Team,
+- y dejar el workspace listo para trabajo eficiente con agentes (Codex/LLM).
+
+Está pensada para reducir fricción operativa y reducir desperdicio de tokens en análisis asistido por IA.
+
+## ¿Qué resuelve?
+
+En vez de carpetas ad-hoc por reto, BlueBox crea un flujo estable:
+
+- entrada de evidencia (`inbox/`),
+- workspace de caso (`cases/<nombre>/`),
+- reportes y salida final (`work/reports/`, `output/`),
+- contexto compacto para agentes (`agent/context.md`, `agent/handoff.md`).
+
+## Instalación rápida (recomendada con entorno virtual)
 
 ```bash
 python3 -m venv .venv
@@ -12,265 +27,121 @@ python -m pip install .
 bluebox --help
 ```
 
-Flujo mínimo de prueba:
+## Flujo recomendado (operador CTF / Blue Team)
 
 ```bash
-bluebox start
-bluebox doctor
-bluebox init
-# (modo interactivo: te pedirá challenge name, artifacts, title, context y base path)
-bluebox classify
-bluebox validate
+bluebox wizard
+bluebox setup --profile all
+bluebox new
+bluebox inspect
+bluebox run --no-launch
+bluebox info
+bluebox next
 ```
 
-## Estado actual
-
-- Proyecto inicial con CLI funcional.
-- Comando disponible: `bluebox --help`.
-- Flujo de trabajo por ramas de fase activo.
-- Modelo de workspace de caso y templates base implementados.
-- Comando `bluebox init` implementado para inicializar casos desde artefactos.
-
-## Guía de uso
-
-- Consulta `USAGE_GUIDE.md` para flujo operativo completo paso a paso.
-
-## Guía de instalación
-
-- Consulta `INSTALL.md` para instalación desde cero, verificación y troubleshooting.
-
-## Qué contiene el repositorio
-
-- `bluebox/`: paquete Python principal y CLI (`bluebox.cli.app`).
-- `bluebox/core/`: modelo de caso, sanitización, render y generador determinista de estructura.
-- `cli/`, `core/`, `templates/`, `scripts/`, `tests/`: estructura base para evolución por fases.
-- `examples/`: ejemplos públicos seguros y reproducibles.
-- `pyproject.toml`: metadatos del paquete y entrypoint del comando `bluebox`.
-- `Makefile`: helper mínimo para tareas futuras.
-
-## Templates de caso incluidos
-
-- `templates/case/notes/*`: `writeup.md`, `findings.md`, `changelog.md`, `hypotheses.md`, `writeup_final.md`.
-- `templates/case/meta/*`: `solution_state.json`, `artifacts_inventory.json`, `hashes.json`, `evidence_summary.json`.
-- `templates/case/.codex/*`: `prompt.txt`, `context.md`.
-
-## Requisitos
-
-- Python `>=3.12`.
-- Entorno de consola en macOS, Linux o Windows.
-
-## Instalación local (desarrollo)
+Flujo corto para demo:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -e .
-```
-
-## Uso
-
-```bash
-bluebox --help
-bluebox start
-bluebox setup --mode all
-bluebox setup --mode tool --tool jq
-bluebox version
 bluebox new --name "Safe Demo" --artifacts ./examples/safe-demo/artifacts --title "Safe Demo"
-bluebox init
-bluebox init --name "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
-bluebox validate
-bluebox classify
-bluebox solve --no-launch
-bluebox status
-bluebox doctor
-bluebox finalize --allow-incomplete
-bluebox project show
-bluebox project set ./suspicious-beaconing
-bluebox project list
-bluebox project list --existing-only
-bluebox project list --compact
-bluebox project prune-missing
-bluebox project clear
-bluebox tools list
-bluebox tools check base
-bluebox tools install network
-bluebox tools install network --apply
+bluebox inspect
+bluebox check
+bluebox run --no-launch
+bluebox report --allow-incomplete
 ```
 
-## Qué hace `bluebox init`
+## Comandos clave
 
-- Crea el folder del caso con nombre sanitizado.
-- Genera la estructura canónica de carpetas y archivos de notas/meta.
-- Copia artefactos a `original/` y `working/` (sin modificar los originales).
-- Calcula hashes SHA-256 de `original/` y escribe `meta/hashes.json`.
-- Construye inventario en `meta/artifacts_inventory.json`.
-- Inicializa `meta/solution_state.json` con estado `initialized`.
-- Escribe la primera entrada en `notes/changelog.md`.
-- Guarda el proyecto activo en `.bluebox/active_case.txt` para usar otros comandos sin ruta explícita.
+### Product UX
 
-## Qué hace `bluebox new`
+- `bluebox new`: crea caso de forma segura.
+- `bluebox check`: valida estructura y metadata del caso.
+- `bluebox inspect`: clasifica el caso y propone dirección inicial.
+- `bluebox run`: prepara/lanza flujo de agente.
+- `bluebox info`: estado operativo enriquecido del caso.
+- `bluebox report`: genera writeup final.
+- `bluebox home`: dashboard rápido.
+- `bluebox next`: sugiere siguiente acción.
+- `bluebox handoff`: resumen corto para transferencia entre analistas/agentes.
+- `bluebox summary`: resumen compacto del caso.
+- `bluebox summarize <archivo>`: convierte salidas grandes en reportes compactos.
 
-- Crea casos en `cases/<case-name>` con modo de evidencia seguro por defecto.
-- Soporta `--evidence-mode` con: `reference-only`, `lightweight-copy`, `full-copy`.
-- Por defecto usa `reference-only` para evitar copias pesadas innecesarias.
+### Gestión de casos activos
 
-## Qué valida `bluebox validate`
+- `bluebox cases list/current/use/open/clear/archive/clone`
+- aliases cortos: `bluebox use`, `bluebox current`, `bluebox open`
 
-- Estructura de carpetas requerida del caso.
-- Archivos obligatorios en `notes/`, `meta/` y `.codex/`.
-- JSON válido en archivos `meta/*.json` requeridos.
-- Estado permitido en `meta/solution_state.json`.
-- Retorna código `0` si el caso es válido y `1` si hay errores.
+### Tooling Blue Team / DFIR
 
-## Qué hace `bluebox classify`
+- `bluebox tools profiles`
+- `bluebox tools list`
+- `bluebox tools check <profile>`
+- `bluebox tools install <profile>`
+- `bluebox tools install <profile> --apply`
 
-- Lee `meta/artifacts_inventory.json` y detecta tipos de artefacto por extensión/nombre.
-- Infiere categoría inicial (ej. `pcap/network forensics`, `windows dfir`, `phishing`, etc.).
-- Infiere subcategorías cuando aplica.
-- Propone una ruta inicial de análisis e hipótesis de trabajo (advisory).
-- Actualiza:
-  - `notes/hypotheses.md`
-  - `notes/writeup.md`
-  - `notes/changelog.md`
-  - `meta/solution_state.json` (estado `classified`)
+Perfiles principales:
 
-## Qué hace `bluebox solve`
+- `base`
+- `forensics-core`
+- `pcap`
+- `windows-dfir`
+- `memory`
+- `malware`
+- `ctf-blue`
+- `all`
 
-- Valida el caso antes de iniciar solve.
-- Construye `.codex/context.md` con título, contexto, categoría/subcategorías,
-	resumen de inventario, hipótesis activas y estado actual.
-- Copia el prompt principal de solver a `.codex/prompt.txt`.
-- Registra acciones en `meta/commands.log`.
-- Actualiza `meta/solution_state.json` a estado `solving`.
-- Lanza `codex` en el directorio del caso (o prepara sin lanzar con `--no-launch`).
+Cuando hay caso activo, `tools install` puede dejar reporte en:
 
-## Qué hace `bluebox status`
+- `cases/<case>/work/reports/tooling_status.md`
 
-- Muestra resumen operativo del caso:
-  - nombre del caso
-  - título
-  - estado actual
-  - categoría
-  - número de artefactos
-  - cantidad de hipótesis activas
-  - última actualización registrada en changelog
+## Entorno virtual vs herramientas del sistema
 
-## Qué hace `bluebox doctor`
+- `bluebox` (paquete Python) vive donde lo instales (idealmente `.venv`).
+- Las herramientas de `tools install --apply` se instalan en el **host** (brew/apt/pip según disponibilidad), no solo dentro del venv.
 
-- Ejecuta diagnóstico rápido del entorno:
-  - versión de Python en uso
-  - plataforma del sistema
-  - disponibilidad de `uv`
-  - disponibilidad de `codex`
-  - disponibilidad de `git`
+## Estructura de trabajo
 
-## Qué hace `bluebox tools`
+```text
+.bluebox/
+  active_case.txt
+  recent_cases.json
+  settings.yaml
+inbox/
+cases/
+exports/
+profiles/
+```
 
-- `bluebox tools list`: lista perfiles de herramientas DFIR/Blue Team.
-- `bluebox tools check <profile>`: verifica disponibilidad de herramientas del perfil.
-- `bluebox tools install <profile>`: muestra comandos sugeridos (dry-run por defecto).
-- `bluebox tools install <profile> --apply`: ejecuta comandos de instalación en tu sistema (brew/apt/pip según host).
+Cada caso incluye estructura orientada a investigación + agentes:
 
-## Qué hace `bluebox setup`
+- `challenge/` (manifest, hashes, referencias)
+- `work/` (reportes y derivados)
+- `agent/` (contexto/prompt/handoff)
+- `memory/` (log cronológico)
+- `output/` (flag y writeups)
 
-- `bluebox setup`: asistente inicial con dos opciones (instalar todo por perfiles o una herramienta específica).
-- `bluebox setup --mode all`: prepara instalación de todos los perfiles.
-- `bluebox setup --mode tool --tool <name>`: prepara instalación de una herramienta concreta.
-- Agrega `--apply` para ejecutar instalación real; sin `--apply` es dry-run.
+## Guías
 
-## Qué hace `bluebox project`
+- Uso operativo completo: `USAGE_GUIDE.md`
+- Instalación y troubleshooting: `INSTALL.md`
+- Ejemplo público seguro: `examples/README.md`
 
-- `bluebox project show`: muestra la ruta del proyecto activo en el workspace actual.
-- `bluebox project set <case-path>`: cambia el proyecto activo para ejecutar comandos sin pasar ruta.
-- `bluebox project list`: lista proyectos conocidos en el historial del workspace.
-- `bluebox project list --existing-only`: muestra solo proyectos cuya ruta todavía existe.
-- `bluebox project list --compact`: muestra solo rutas, una por línea.
-- `bluebox project prune-missing`: limpia del historial rutas que ya no existen.
-- `bluebox project clear`: limpia el proyecto activo actual.
-
-## Sobre entorno virtual y sistema
-
-- BlueBox puede ejecutarse dentro de `.venv` (recomendado) o en Python global.
-- El paquete `bluebox` sí vive en el entorno donde lo instales (venv o sistema).
-- Las herramientas de `bluebox tools install --apply` son herramientas del host (no quedan encerradas solo en el venv, salvo comandos explícitos de `pip`).
-
-## Qué hace `bluebox finalize`
-
-- Lee documentación acumulada:
-  - `notes/writeup.md`
-  - `notes/findings.md`
-  - `notes/changelog.md`
-  - `notes/hypotheses.md`
-  - `meta/evidence_summary.json`
-  - `meta/solution_state.json`
-- Genera `notes/writeup_final.md` fiel al contenido ya documentado.
-- Si el caso está en `solved/finalized`, mueve estado a `finalized`.
-- Si no está resuelto, aborta limpiamente por defecto.
-- Puede generar versión incompleta explícita con `--allow-incomplete`.
-
-## Ejecución de pruebas
+## Pruebas
 
 ```bash
 source .venv/bin/activate
-pip install pytest
+python -m pip install pytest
 pytest -q
 ```
 
-## Ejemplos públicos seguros
+## Modelo de ramas
 
-- Demo incluida: `examples/safe-demo/`.
-- Los artefactos del demo son sintéticos y aptos para repositorio público.
-- Guía de ejecución rápida en `examples/README.md`.
+- `main`: rama de distribución (solo lo necesario para usuarios finales).
+- `development`: integración de trabajo y evolución técnica.
 
-## Flujo de ramas por fases
+## Objetivo del proyecto
 
-- `main` se mantiene estable.
-- Cada fase se desarrolla en su rama: `phase/<numero>-<nombre>`.
-- Se realizan commits pequeños y frecuentes.
-- Al cerrar la fase, se integra a `main` con merge commit.
+BlueBox busca ser una plataforma CLI ligera para CTF/Blue Team que combine:
 
-Ejemplo:
-
-```bash
-git checkout main
-git checkout -b phase/2-case-model
-# ... cambios de la fase ...
-git add .
-git commit -m "feat: implement case model"
-git checkout main
-git merge --no-ff phase/2-case-model -m "merge: integrate phase 2 case model"
-```
-
-## Despliegue a GitHub (publicación del repo)
-
-Si el repo no aparece en GitHub, normalmente falta crear/configurar remoto y hacer `push`.
-
-1) Crear el repositorio en GitHub (ejemplo: `BlueBox`).
-
-2) Conectar remoto:
-
-```bash
-git remote add origin git@github.com:<tu-usuario>/BlueBox.git
-# o HTTPS:
-# git remote add origin https://github.com/<tu-usuario>/BlueBox.git
-```
-
-3) Subir `main`:
-
-```bash
-git push -u origin main
-```
-
-4) Subir ramas de fase cuando quieras compartir trabajo intermedio:
-
-```bash
-git push -u origin phase/rebrand-bluebox
-```
-
-## Verificación rápida de Git remoto
-
-```bash
-git remote -v
-git branch -vv
-```
+- disciplina de evidencia,
+- automatización operativa,
+- y colaboración fluida con agentes.
