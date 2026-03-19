@@ -141,6 +141,8 @@ bluebox finalize --allow-incomplete
 ```bash
 bluebox version
 bluebox doctor
+bluebox setup --mode all
+bluebox setup --mode tool --tool jq
 bluebox tools list
 bluebox tools check base
 bluebox tools install network

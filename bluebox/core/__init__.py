@@ -11,7 +11,16 @@ from .finalize_service import FinalizeOutcome, finalize_case
 from .init_service import initialize_case_from_artifacts
 from .solve_service import SolveOutcome, prepare_and_launch_solve
 from .status_service import CaseStatusSnapshot, get_case_status
-from .tools_service import ToolInstallResult, ToolStatus, check_profile, install_profile, list_profiles
+from .tools_service import (
+    ToolInstallResult,
+    ToolStatus,
+    check_profile,
+    install_all_profiles,
+    install_profile,
+    install_tool,
+    list_profiles,
+    list_tool_names,
+)
 from .validation import ALLOWED_SOLUTION_STATUS, ValidationReport, validate_case_structure
 from .workspace_builder import create_case_workspace
 
@@ -33,7 +42,10 @@ __all__ = [
     "finalize_case",
     "get_case_status",
     "install_profile",
+    "install_all_profiles",
+    "install_tool",
     "list_profiles",
+    "list_tool_names",
     "prepare_and_launch_solve",
     "sanitize_case_name",
     "ensure_case_structure",

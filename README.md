@@ -73,6 +73,8 @@ pip install -e .
 ```bash
 bluebox --help
 bluebox start
+bluebox setup --mode all
+bluebox setup --mode tool --tool jq
 bluebox version
 bluebox init
 bluebox init --name "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
@@ -162,6 +164,13 @@ bluebox tools install network --apply
 - `bluebox tools check <profile>`: verifica disponibilidad de herramientas del perfil.
 - `bluebox tools install <profile>`: muestra comandos sugeridos (dry-run por defecto).
 - `bluebox tools install <profile> --apply`: ejecuta comandos de instalación en tu sistema (brew/apt/pip según host).
+
+## Qué hace `bluebox setup`
+
+- `bluebox setup`: asistente inicial con dos opciones (instalar todo por perfiles o una herramienta específica).
+- `bluebox setup --mode all`: prepara instalación de todos los perfiles.
+- `bluebox setup --mode tool --tool <name>`: prepara instalación de una herramienta concreta.
+- Agrega `--apply` para ejecutar instalación real; sin `--apply` es dry-run.
 
 ## Qué hace `bluebox project`
 

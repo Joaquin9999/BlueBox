@@ -12,7 +12,10 @@ from bluebox.core import (
     finalize_case,
     get_case_status,
     initialize_case_from_artifacts,
+    install_all_profiles,
     install_profile,
+    install_tool,
+    list_tool_names,
     list_profiles,
     prepare_and_launch_solve,
     validate_case_structure,
@@ -147,6 +150,11 @@ def start() -> None:
     """Show onboarding guide, commands, and recommended workflow."""
     message = """[bold]BlueBox Quick Start[/bold]
 
+[bold]0) Setup inicial de herramientas[/bold]
+- Opción 1: [cyan]bluebox setup --mode all[/cyan]
+- Opción 2: [cyan]bluebox setup --mode tool --tool <name>[/cyan]
+- Ejecuta instalación real con [cyan]--apply[/cyan]
+
 [bold]1) Inicializa un caso[/bold]
 - Interactivo: [cyan]bluebox init[/cyan]
 - Script/CI: [cyan]bluebox init --name \"My Case\" --artifacts ./artifacts --title \"My Case\"[/cyan]
@@ -174,6 +182,93 @@ def start() -> None:
 [bold]Tip[/bold]: Usa [cyan]bluebox --help[/cyan] y [cyan]bluebox <comando> --help[/cyan] para ver opciones detalladas.
 """
     console.print(Panel.fit(message, title="bluebox start", border_style="cyan"))
+
+
+@app.command()
+def setup(
+    mode: str | None = typer.Option(
+        None,
+        "--mode",
+        help="Setup mode: 'all' (all profiles) or 'tool' (single tool).",
+    ),
+    tool: str | None = typer.Option(
+        None,
+        "--tool",
+        help="Tool name when mode is 'tool'.",
+    ),
+    apply: bool = typer.Option(False, "--apply", help="Execute install commands instead of dry-run."),
+) -> None:
+    """Run initial setup: install all tool profiles or one specific tool."""
+    selected_mode = (mode or "").strip().lower()
+    if not selected_mode:
+        console.print("[bold]Setup options:[/bold]")
+        console.print("1) Install all profiles")
+        console.print("2) Install one specific tool")
+        option = typer.prompt("Choose option", default="1")
+        selected_mode = "all" if option.strip() == "1" else "tool"
+
+    if selected_mode not in {"all", "tool"}:
+        console.print("[red]Error:[/red] Invalid mode. Use --mode all or --mode tool.")
+        raise typer.Exit(code=1)
+
+    if selected_mode == "all":
+        console.print("[bold]Setup mode:[/bold] install all profiles")
+        if not apply:
+            console.print("[cyan]Dry-run mode:[/cyan] no install commands are executed.")
+        else:
+            console.print("[yellow]Applying system install commands for missing tools...[/yellow]")
+
+        all_results = install_all_profiles(apply=apply)
+        failures = 0
+        pending = 0
+        for profile_name, profile_results in all_results.items():
+            console.print(f"\n[bold]{profile_name}[/bold]")
+            for result in profile_results:
+                if result.success:
+                    console.print(f"- {result.name}: [green]OK[/green] ({result.message})")
+                    continue
+
+                if apply:
+                    failures += 1
+                else:
+                    pending += 1
+                console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
+                if result.command:
+                    console.print(f"    command: {result.command}")
+
+        if apply and failures > 0:
+            raise typer.Exit(code=1)
+        if not apply and pending > 0:
+            console.print("\n[bold]Tip:[/bold] Run with [cyan]--apply[/cyan] to execute commands.")
+        return
+
+    selected_tool = (tool or "").strip()
+    if not selected_tool:
+        available_tools = ", ".join(list_tool_names())
+        console.print(f"[bold]Available tools:[/bold] {available_tools}")
+        selected_tool = typer.prompt("Tool name")
+
+    if not apply:
+        console.print("[cyan]Dry-run mode:[/cyan] no install commands are executed.")
+    else:
+        console.print("[yellow]Applying system install command for selected tool...[/yellow]")
+
+    try:
+        result = install_tool(selected_tool, apply=apply)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    if result.success:
+        console.print(f"- {result.name}: [green]OK[/green] ({result.message})")
+        return
+
+    console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
+    if result.command:
+        console.print(f"    command: {result.command}")
+
+    if apply:
+        raise typer.Exit(code=1)
 
 
 @project_app.command("show")

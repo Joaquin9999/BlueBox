@@ -30,6 +30,14 @@ def list_profiles() -> dict[str, list[ToolSpec]]:
     return TOOLS_BY_PROFILE
 
 
+def list_tool_names() -> list[str]:
+    names: set[str] = set()
+    for specs in TOOLS_BY_PROFILE.values():
+        for spec in specs:
+            names.add(spec.name)
+    return sorted(names)
+
+
 def _os_family() -> str:
     system = platform.system().lower()
     if "darwin" in system:
@@ -68,6 +76,61 @@ def check_profile(profile: str) -> list[ToolStatus]:
             )
         )
     return statuses
+
+
+def _find_tool_spec(tool_name: str) -> ToolSpec | None:
+    target = tool_name.strip().lower()
+    for specs in TOOLS_BY_PROFILE.values():
+        for spec in specs:
+            if spec.name.lower() == target:
+                return spec
+    return None
+
+
+def install_tool(tool_name: str, *, apply: bool = False) -> ToolInstallResult:
+    spec = _find_tool_spec(tool_name)
+    if spec is None:
+        raise ValueError(f"Unknown tool: {tool_name}")
+
+    family = _os_family()
+    hints = INSTALL_HINTS.get(family, {})
+    available = _check_tool(spec)
+    if available:
+        return ToolInstallResult(
+            name=spec.name,
+            attempted=False,
+            success=True,
+            command=None,
+            message="already available",
+        )
+
+    command = hints.get(spec.name)
+    if command is None:
+        return ToolInstallResult(
+            name=spec.name,
+            attempted=False,
+            success=False,
+            command=None,
+            message="no install hint for this OS",
+        )
+
+    if not apply:
+        return ToolInstallResult(
+            name=spec.name,
+            attempted=False,
+            success=False,
+            command=command,
+            message="dry-run (use --apply to execute)",
+        )
+
+    completed = subprocess.run(command, shell=True, check=False)
+    return ToolInstallResult(
+        name=spec.name,
+        attempted=True,
+        success=completed.returncode == 0,
+        command=command,
+        message="installed" if completed.returncode == 0 else f"failed ({completed.returncode})",
+    )
 
 
 def install_profile(profile: str, *, apply: bool = False) -> list[ToolInstallResult]:
@@ -125,4 +188,11 @@ def install_profile(profile: str, *, apply: bool = False) -> list[ToolInstallRes
             )
         )
 
+    return results
+
+
+def install_all_profiles(*, apply: bool = False) -> dict[str, list[ToolInstallResult]]:
+    results: dict[str, list[ToolInstallResult]] = {}
+    for profile in TOOLS_BY_PROFILE:
+        results[profile] = install_profile(profile, apply=apply)
     return results
