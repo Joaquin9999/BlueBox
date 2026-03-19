@@ -15,6 +15,7 @@
 - `bluebox/`: paquete Python principal y CLI (`bluebox.cli.app`).
 - `bluebox/core/`: modelo de caso, sanitización, render y generador determinista de estructura.
 - `cli/`, `core/`, `templates/`, `scripts/`, `tests/`: estructura base para evolución por fases.
+- `examples/`: ejemplos públicos seguros y reproducibles.
 - `pyproject.toml`: metadatos del paquete y entrypoint del comando `bluebox`.
 - `Makefile`: helper mínimo para tareas futuras.
 
@@ -133,6 +134,12 @@ source .venv/bin/activate
 pip install pytest
 pytest -q
 ```
+
+## Ejemplos públicos seguros
+
+- Demo incluida: `examples/safe-demo/`.
+- Los artefactos del demo son sintéticos y aptos para repositorio público.
+- Guía de ejecución rápida en `examples/README.md`.
 
 ## Flujo de ramas por fases
 
