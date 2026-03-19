@@ -82,21 +82,21 @@ Resultado esperado:
 - Código `0` si estructura/JSON/status son válidos
 - Código `1` y errores claros si hay problemas
 
-### 4.4 Preparar solve con Codex
+### 4.4 Preparar solve con Agent
 
 ```bash
 bluebox solve --no-launch
 ```
 
-Modo real (si tienes `codex` instalado):
+Modo real (si tienes `agent` instalado):
 
 ```bash
 bluebox solve
 ```
 
 Resultado esperado:
-- `.codex/context.md` actualizado
-- `.codex/prompt.txt` actualizado
+- `agent/context.md` actualizado
+- `agent/prompt.md` actualizado
 - `meta/commands.log` con eventos
 - Estado a `solving`
 

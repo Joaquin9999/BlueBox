@@ -42,12 +42,12 @@ def build_doctor_report() -> DoctorReport:
         )
     )
 
-    codex_path = shutil.which("codex")
+    agent_path = shutil.which("agent")
     checks.append(
         ToolCheck(
-            name="codex",
-            available=codex_path is not None,
-            detail=_run_version_command(["codex", "--version"]) if codex_path else "not found in PATH",
+            name="agent",
+            available=agent_path is not None,
+            detail=_run_version_command(["agent", "--version"]) if agent_path else "not found in PATH",
         )
     )
 
