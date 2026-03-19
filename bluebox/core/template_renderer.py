@@ -13,7 +13,15 @@ def _repo_root() -> Path:
 
 
 def templates_root() -> Path:
-    return _repo_root() / "templates" / "case"
+    package_templates = Path(__file__).resolve().parents[1] / "templates" / "case"
+    if package_templates.exists():
+        return package_templates
+
+    repository_templates = _repo_root() / "templates" / "case"
+    if repository_templates.exists():
+        return repository_templates
+
+    raise FileNotFoundError("Could not locate case templates directory.")
 
 
 def build_template_environment() -> Environment:
