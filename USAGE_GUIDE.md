@@ -55,7 +55,7 @@ bluebox init --name "Suspicious Beaconing" \
 
 Resultado esperado:
 - Carpeta de caso sanitizada en `cases/<nombre-caso>/` (ej. `cases/suspicious-beaconing/`)
-- Estructura estándar compatible: `notes/`, `meta/`, `.codex/` + árbol vNext (`challenge/`, `agent/`, `memory/`, `output/`)
+- Estructura estándar compatible: `notes/`, `meta/`, `agent/` + árbol vNext (`challenge/`, `agent/`, `memory/`, `output/`)
 - `hashes.json`, `artifacts_inventory.json`, `solution_state.json`
 - Proyecto activo guardado en `.bluebox/active_case.txt`
 - Recientes guardados en `.bluebox/recent_cases.json`
@@ -236,8 +236,8 @@ Nota: con `--apply`, BlueBox ejecuta comandos de instalación del sistema (por e
 - `Case validation failed ...`
   - Ejecuta `bluebox validate <case-path>` y corrige faltantes.
 
-- `Codex CLI not found in PATH`
-  - Usa `bluebox solve --no-launch` o instala `codex` en tu entorno.
+- `Agent CLI not found in PATH`
+  - Usa `bluebox solve --no-launch` o instala tu agente en tu entorno.
 
 - `Case is not solved ... finalize`
   - Usa `--allow-incomplete` o marca el caso como resuelto antes de finalizar.

@@ -4,7 +4,7 @@
 
 - organizar casos de forma reproducible,
 - preparar un entorno de trabajo con herramientas Blue Team,
-- y dejar el workspace listo para trabajo eficiente con agentes (Codex/LLM).
+- y dejar el workspace listo para trabajo eficiente con agentes (LLM).
 
 Está pensada para reducir fricción operativa y reducir desperdicio de tokens en análisis asistido por IA.
 

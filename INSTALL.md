@@ -129,9 +129,9 @@ source .venv/bin/activate
 python -m pip install .
 ```
 
-### `Codex CLI not found in PATH`
+### `Agent CLI not found in PATH`
 
-- `bluebox solve` puede ejecutarse sin lanzar codex usando:
+- `bluebox solve` puede ejecutarse sin lanzar el agente usando:
 
 ```bash
 bluebox solve <case-path> --no-launch

@@ -17,7 +17,7 @@ class SolveOutcome:
     context_path: Path
     prompt_path: Path
     command_log_path: Path
-    codex_return_code: int | None
+    agent_return_code: int | None
 
 
 def _utc_timestamp() -> str:
@@ -72,11 +72,11 @@ def _summarize_artifacts(inventory: dict[str, Any], limit: int = 15) -> list[str
 
 
 def _repo_prompt_path() -> Path:
-    package_prompt = Path(__file__).resolve().parents[1] / "prompts" / "codex_solver_prompt.txt"
+    package_prompt = Path(__file__).resolve().parents[1] / "templates" / "case" / "agent" / "prompt.md"
     if package_prompt.exists():
         return package_prompt
 
-    fallback_prompt = Path(__file__).resolve().parents[2] / "prompts" / "codex_solver_prompt.txt"
+    fallback_prompt = Path(__file__).resolve().parents[2] / "templates" / "case" / "agent" / "prompt.md"
     if fallback_prompt.exists():
         return fallback_prompt
 
@@ -95,7 +95,7 @@ def _build_context_markdown(
     timestamp: str,
 ) -> str:
     lines = [
-        "# BlueBox Codex Context",
+        "# BlueBox Agent Context",
         "",
         f"- Generated at: {timestamp}",
         f"- Title: {title}",
@@ -123,19 +123,21 @@ def _build_context_markdown(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def _run_codex_cli(case_path: Path) -> int:
-    if shutil.which("codex") is None:
-        raise FileNotFoundError("Codex CLI not found in PATH.")
+def _run_agent_cli(case_path: Path) -> int:
+    if shutil.which("agent") is None:
+        # Fallback gently or raise if strict agent CLI is expected.
+        # For agent-agnostic workflow, returning 0 or logging is fine.
+        raise FileNotFoundError("Agent CLI not found in PATH.")
 
-    process = subprocess.run(["codex"], cwd=case_path, check=False)
+    process = subprocess.run(["agent"], cwd=case_path, check=False)
     return process.returncode
 
 
 def prepare_and_launch_solve(
     case_path: Path,
     *,
-    launch_codex: bool = True,
-    codex_runner: Callable[[Path], int] | None = None,
+    launch_agent: bool = True,
+    agent_runner: Callable[[Path], int] | None = None,
 ) -> SolveOutcome:
     validation = validate_case_structure(case_path)
     if not validation.is_valid:
@@ -174,13 +176,13 @@ def prepare_and_launch_solve(
         timestamp=timestamp,
     )
 
-    codex_dir = case_path / ".codex"
-    codex_dir.mkdir(parents=True, exist_ok=True)
+    agent_dir = case_path / "agent"
+    agent_dir.mkdir(parents=True, exist_ok=True)
 
-    context_path = codex_dir / "context.md"
+    context_path = agent_dir / "context.md"
     context_path.write_text(context_markdown, encoding="utf-8")
 
-    prompt_path = codex_dir / "prompt.txt"
+    prompt_path = agent_dir / "prompt.md"
     prompt_template_path = _repo_prompt_path()
     prompt_path.write_text(prompt_template_path.read_text(encoding="utf-8"), encoding="utf-8")
 
@@ -195,19 +197,24 @@ def prepare_and_launch_solve(
         encoding="utf-8",
     )
     with command_log_path.open("a", encoding="utf-8") as log_file:
-        log_file.write(f"{timestamp} | solve | prepared codex context and prompt\n")
+        log_file.write(f"{timestamp} | solve | prepared agent context and prompt\n")
 
-    codex_return_code: int | None = None
-    if launch_codex:
-        runner = codex_runner or _run_codex_cli
-        codex_return_code = runner(case_path)
-        with command_log_path.open("a", encoding="utf-8") as log_file:
-            log_file.write(f"{_utc_timestamp()} | solve | launched codex (exit={codex_return_code})\n")
+    agent_return_code: int | None = None
+    if launch_agent:
+        runner = agent_runner or _run_agent_cli
+        try:
+            agent_return_code = runner(case_path)
+            with command_log_path.open("a", encoding="utf-8") as log_file:
+                log_file.write(f"{_utc_timestamp()} | solve | launched agent (exit={agent_return_code})\n")
+        except FileNotFoundError:
+            agent_return_code = 127
+            with command_log_path.open("a", encoding="utf-8") as log_file:
+                log_file.write(f"{_utc_timestamp()} | solve | agent launch failed (not found)\n")
 
     return SolveOutcome(
         case_path=case_path,
         context_path=context_path,
         prompt_path=prompt_path,
         command_log_path=command_log_path,
-        codex_return_code=codex_return_code,
+        agent_return_code=agent_return_code,
     )

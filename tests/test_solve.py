@@ -50,8 +50,8 @@ def test_solve_prepare_only_updates_files_and_state(tmp_path: Path) -> None:
     assert solve_result.exit_code == 0
     assert "Prepared solve context" in solve_result.stdout
 
-    context_path = case_root / ".codex" / "context.md"
-    prompt_path = case_root / ".codex" / "prompt.txt"
+    context_path = case_root / "agent" / "context.md"
+    prompt_path = case_root / "agent" / "prompt.md"
     commands_log = case_root / "meta" / "commands.log"
 
     assert context_path.is_file()
@@ -59,7 +59,7 @@ def test_solve_prepare_only_updates_files_and_state(tmp_path: Path) -> None:
     assert commands_log.is_file()
 
     context_content = context_path.read_text(encoding="utf-8")
-    assert "BlueBox Codex Context" in context_content
+    assert "BlueBox Agent Context" in context_content
     assert "Current state" in context_content
 
     state = json.loads((case_root / "meta" / "solution_state.json").read_text(encoding="utf-8"))
@@ -71,14 +71,14 @@ def test_solve_launch_uses_runner_hook(tmp_path: Path) -> None:
 
     outcome = prepare_and_launch_solve(
         case_root,
-        launch_codex=True,
-        codex_runner=lambda _: 0,
+        launch_agent=True,
+        agent_runner=lambda _: 0,
     )
 
-    assert outcome.codex_return_code == 0
+    assert outcome.agent_return_code == 0
 
     commands_log = (case_root / "meta" / "commands.log").read_text(encoding="utf-8")
-    assert "launched codex (exit=0)" in commands_log
+    assert "launched agent (exit=0)" in commands_log
 
 
 def test_solve_fails_for_invalid_case(tmp_path: Path) -> None:

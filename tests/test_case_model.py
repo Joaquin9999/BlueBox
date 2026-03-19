@@ -23,7 +23,7 @@ def test_create_case_workspace_generates_structure_and_files(tmp_path: Path) -> 
     assert (case_root / "original").is_dir()
     assert (case_root / "working").is_dir()
     assert (case_root / "derived" / "extracted").is_dir()
-    assert (case_root / ".codex").is_dir()
+    assert not (case_root / ".codex").exists()
 
     for required_file in REQUIRED_CASE_FILES:
         assert (case_root / required_file).is_file(), f"Missing: {required_file}"

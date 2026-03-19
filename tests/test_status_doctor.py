@@ -70,5 +70,5 @@ def test_doctor_command_outputs_environment_checks() -> None:
     assert "Python:" in result.stdout
     assert "Platform:" in result.stdout
     assert "uv:" in result.stdout
-    assert "codex:" in result.stdout
+    assert "agent:" in result.stdout
     assert "git:" in result.stdout

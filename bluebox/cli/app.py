@@ -1334,7 +1334,7 @@ def inspect_case(
 @app.command("run")
 def run_case(
     case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
-    no_launch: bool = typer.Option(False, "--no-launch", help="Prepare context without launching Codex CLI."),
+    no_launch: bool = typer.Option(False, "--no-launch", help="Prepare context without launching Agent CLI."),
 ) -> None:
     """Product alias for `solve`."""
     solve(case_path, no_launch=no_launch)
@@ -1575,14 +1575,14 @@ def classify(
 @app.command()
 def solve(
     case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
-    no_launch: bool = typer.Option(False, "--no-launch", help="Prepare solve context without launching Codex CLI."),
+    no_launch: bool = typer.Option(False, "--no-launch", help="Prepare solve context without launching Agent CLI."),
 ) -> None:
-    """Prepare and launch Codex CLI for case solving."""
+    """Prepare and launch Agent CLI for case solving."""
     resolved_case_path = _resolve_case_path(case_path, "solve")
     try:
         outcome = prepare_and_launch_solve(
             resolved_case_path,
-            launch_codex=not no_launch,
+            launch_agent=not no_launch,
         )
     except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
         console.print(f"[red]Error:[/red] {error}")
@@ -1592,9 +1592,9 @@ def solve(
     console.print(f"[green]Prepared solve prompt:[/green] {outcome.prompt_path}")
 
     if no_launch:
-        console.print("[yellow]Codex launch skipped (--no-launch).[/yellow]")
-    elif outcome.codex_return_code is not None:
-        console.print(f"[cyan]Codex exit code:[/cyan] {outcome.codex_return_code}")
+        console.print("[yellow]Agent launch skipped (--no-launch).[/yellow]")
+    elif outcome.agent_return_code is not None:
+        console.print(f"[cyan]Agent exit code:[/cyan] {outcome.agent_return_code}")
 
 
 @app.command()
