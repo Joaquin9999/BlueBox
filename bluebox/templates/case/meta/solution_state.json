@@ -1,0 +1,9 @@
+{
+  "case_name": "{{ case_name }}",
+  "title": "{{ title }}",
+  "status": "initialized",
+  "category": null,
+  "subcategories": [],
+  "created_at": "{{ timestamp }}",
+  "updated_at": "{{ timestamp }}"
+}

@@ -1,0 +1,5 @@
+{
+  "case_name": "{{ case_name }}",
+  "generated_at": "{{ timestamp }}",
+  "artifacts": []
+}
