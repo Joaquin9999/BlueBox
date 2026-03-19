@@ -10,7 +10,7 @@ Este directorio contiene ejemplos **públicos y seguros** para demostrar flujo d
 ## Flujo recomendado
 
 ```bash
-bluebox init "Safe Demo" --artifacts ./examples/safe-demo/artifacts --title "Safe Demo"
+bluebox init --name "Safe Demo" --artifacts ./examples/safe-demo/artifacts --title "Safe Demo"
 bluebox classify ./safe-demo
 bluebox validate ./safe-demo
 bluebox solve ./safe-demo --no-launch

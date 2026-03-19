@@ -4,6 +4,15 @@ version = "0.1.0"
 description = "Terminal-based reproducible framework for blue team/DFIR CTF workflows"
 readme = "README.md"
 requires-python = ">=3.12"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: OS Independent",
+  "Environment :: Console",
+  "Topic :: Security",
+]
 dependencies = [
   "typer>=0.12.3",
   "pydantic>=2.8.2",
@@ -11,6 +20,11 @@ dependencies = [
   "pyyaml>=6.0.2",
   "rich>=13.7.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Joaquin9999/BlueBox"
+Repository = "https://github.com/Joaquin9999/BlueBox"
+Issues = "https://github.com/Joaquin9999/BlueBox/issues"
 
 [project.scripts]
 bluebox = "bluebox.cli.app:app"

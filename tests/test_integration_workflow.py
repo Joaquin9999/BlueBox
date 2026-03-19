@@ -19,6 +19,7 @@ def test_integration_init_classify_validate(tmp_path: Path) -> None:
         app,
         [
             "init",
+            "--name",
             "Integration Case",
             "--artifacts",
             str(artifacts_dir),

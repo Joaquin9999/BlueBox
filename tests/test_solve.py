@@ -20,6 +20,7 @@ def _init_and_classify_case(tmp_path: Path) -> Path:
         app,
         [
             "init",
+            "--name",
             "Solve Case",
             "--artifacts",
             str(artifacts_dir),

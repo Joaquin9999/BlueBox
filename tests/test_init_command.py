@@ -33,6 +33,7 @@ def test_init_command_creates_case_workspace(tmp_path: Path) -> None:
         app,
         [
             "init",
+            "--name",
             "Suspicious Beaconing",
             "--artifacts",
             str(artifacts_dir),
@@ -86,6 +87,7 @@ def test_init_fails_when_case_already_exists(tmp_path: Path) -> None:
         app,
         [
             "init",
+            "--name",
             "Repeat Case",
             "--artifacts",
             str(artifacts_file),
@@ -99,6 +101,7 @@ def test_init_fails_when_case_already_exists(tmp_path: Path) -> None:
         app,
         [
             "init",
+            "--name",
             "Repeat Case",
             "--artifacts",
             str(artifacts_file),
@@ -109,6 +112,62 @@ def test_init_fails_when_case_already_exists(tmp_path: Path) -> None:
         ],
     )
 
-    assert first.exit_code == 0
-    assert second.exit_code == 1
+    assert first.exit_code == 0, first.stdout
+    assert second.exit_code == 1, second.stdout
     assert "Case directory already exists" in second.stdout
+
+
+def test_init_sets_active_project_file(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    artifacts_file = tmp_path / "artifact.txt"
+    artifacts_file.write_text("abc", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "--name",
+            "Active Case",
+            "--artifacts",
+            str(artifacts_file),
+            "--title",
+            "Active Case",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    active_file = tmp_path / ".bluebox" / "active_case.txt"
+    assert active_file.is_file()
+    assert active_file.read_text(encoding="utf-8").strip().endswith("active-case")
+
+
+def test_classify_uses_active_project_when_path_is_omitted(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    artifacts_dir = tmp_path / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (artifacts_dir / "network.log").write_text("demo", encoding="utf-8")
+
+    init_result = runner.invoke(
+        app,
+        [
+            "init",
+            "--name",
+            "Project Flow",
+            "--artifacts",
+            str(artifacts_dir),
+            "--title",
+            "Project Flow",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert init_result.exit_code == 0
+
+    classify_result = runner.invoke(app, ["classify"])
+    assert classify_result.exit_code == 0
+    assert "Classified:" in classify_result.stdout
+
+

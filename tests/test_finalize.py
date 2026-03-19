@@ -18,6 +18,7 @@ def _init_case(tmp_path: Path, name: str = "Finalize Case") -> Path:
         app,
         [
             "init",
+            "--name",
             name,
             "--artifacts",
             str(artifacts_dir),

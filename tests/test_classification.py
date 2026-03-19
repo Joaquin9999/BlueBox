@@ -14,6 +14,7 @@ def _init_case(tmp_path: Path, challenge_name: str, artifacts_dir: Path) -> Path
         app,
         [
             "init",
+            "--name",
             challenge_name,
             "--artifacts",
             str(artifacts_dir),

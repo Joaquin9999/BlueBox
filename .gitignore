@@ -24,9 +24,14 @@ logs/
 
 tmp/
 temp/
+.bluebox/
+runs/
 
 dist/
 build/
 *.egg-info/
 
 blueBox_implementation_instructions.md
+ 
+
+ 
