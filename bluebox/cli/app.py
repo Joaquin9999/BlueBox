@@ -6,10 +6,13 @@ from rich.console import Console
 
 from bluebox.core import (
     build_doctor_report,
+    check_profile,
     classify_case,
     finalize_case,
     get_case_status,
     initialize_case_from_artifacts,
+    install_profile,
+    list_profiles,
     prepare_and_launch_solve,
     validate_case_structure,
 )
@@ -19,6 +22,8 @@ app = typer.Typer(
     help="BlueBox CLI",
 )
 console = Console()
+tools_app = typer.Typer(help="Manage optional Blue Team/DFIR tool profiles.")
+app.add_typer(tools_app, name="tools")
 
 
 @app.callback()
@@ -169,6 +174,66 @@ def finalize(
         console.print(f"[yellow]Generated incomplete final writeup:[/yellow] {outcome.output_path}")
     else:
         console.print(f"[green]Generated final writeup:[/green] {outcome.output_path}")
+
+
+@tools_app.command("list")
+def tools_list() -> None:
+    """List available tool profiles and tools."""
+    profiles = list_profiles()
+    for profile_name, specs in profiles.items():
+        console.print(f"[bold]{profile_name}[/bold]")
+        for spec in specs:
+            console.print(f"  - {spec.name}: {spec.description}")
+
+
+@tools_app.command("check")
+def tools_check(profile: str = typer.Argument(..., help="Profile to check.")) -> None:
+    """Check whether tools in a profile are available."""
+    try:
+        statuses = check_profile(profile)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    missing = 0
+    for status in statuses:
+        label = "OK" if status.available else "MISSING"
+        color = "green" if status.available else "red"
+        console.print(f"- {status.name}: [{color}]{label}[/{color}] ({status.detail})")
+        if not status.available and status.install_hint:
+            console.print(f"    hint: {status.install_hint}")
+        if not status.available:
+            missing += 1
+
+    if missing > 0:
+        raise typer.Exit(code=1)
+
+
+@tools_app.command("install")
+def tools_install(
+    profile: str = typer.Argument(..., help="Profile to install."),
+    apply: bool = typer.Option(False, "--apply", help="Execute install commands instead of dry-run."),
+) -> None:
+    """Install missing tools for a profile (dry-run by default)."""
+    try:
+        results = install_profile(profile, apply=apply)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    failures = 0
+    for result in results:
+        if result.success:
+            console.print(f"- {result.name}: [green]OK[/green] ({result.message})")
+            continue
+
+        failures += 1
+        console.print(f"- {result.name}: [yellow]PENDING[/yellow] ({result.message})")
+        if result.command:
+            console.print(f"    command: {result.command}")
+
+    if failures > 0:
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":
