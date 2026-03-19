@@ -27,6 +27,17 @@ temp/
 .bluebox/
 runs/
 
+inbox/*
+!inbox/.gitkeep
+cases/*
+!cases/.gitkeep
+exports/*
+!exports/.gitkeep
+profiles/*
+!profiles/.gitkeep
+tools/*
+!tools/.gitkeep
+
 dist/
 build/
 *.egg-info/
