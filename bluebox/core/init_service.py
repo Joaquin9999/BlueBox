@@ -59,6 +59,10 @@ def initialize_case_from_artifacts(
     context: str,
 ) -> Path:
     spec = CaseWorkspaceSpec(raw_name=challenge_name, title=title, context=context)
+    planned_case_root = base_path / spec.case_name
+    if planned_case_root.exists():
+        raise FileExistsError(f"Case directory already exists: {planned_case_root}")
+
     case_root = create_case_workspace(base_path=base_path, spec=spec)
 
     if not artifacts_path.exists():

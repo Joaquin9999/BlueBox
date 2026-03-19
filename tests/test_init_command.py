@@ -1,0 +1,114 @@
+import hashlib
+import json
+from pathlib import Path
+
+from typer.testing import CliRunner
+
+from bluebox.cli.app import app
+
+
+runner = CliRunner()
+
+
+def _sha256(content: bytes) -> str:
+    digest = hashlib.sha256()
+    digest.update(content)
+    return digest.hexdigest()
+
+
+def test_init_command_creates_case_workspace(tmp_path: Path) -> None:
+    artifacts_dir = tmp_path / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    file_a = artifacts_dir / "log.txt"
+    file_b = artifacts_dir / "nested" / "evidence.bin"
+    file_b.parent.mkdir(parents=True, exist_ok=True)
+
+    file_a_content = b"suspicious beaconing"
+    file_b_content = b"\x00\x01\x02\x03"
+    file_a.write_bytes(file_a_content)
+    file_b.write_bytes(file_b_content)
+
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "Suspicious Beaconing",
+            "--artifacts",
+            str(artifacts_dir),
+            "--title",
+            "Suspicious Beaconing",
+            "--context",
+            "Initial context",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+
+    case_root = tmp_path / "suspicious-beaconing"
+    assert case_root.is_dir()
+
+    original_a = case_root / "original" / "log.txt"
+    original_b = case_root / "original" / "nested" / "evidence.bin"
+    working_a = case_root / "working" / "log.txt"
+    working_b = case_root / "working" / "nested" / "evidence.bin"
+
+    assert original_a.read_bytes() == file_a_content
+    assert original_b.read_bytes() == file_b_content
+    assert working_a.read_bytes() == file_a_content
+    assert working_b.read_bytes() == file_b_content
+
+    hashes = json.loads((case_root / "meta" / "hashes.json").read_text(encoding="utf-8"))
+    hashes_by_path = {entry["path"]: entry["sha256"] for entry in hashes["files"]}
+
+    assert hashes["algorithm"] == "sha256"
+    assert hashes_by_path["log.txt"] == _sha256(file_a_content)
+    assert hashes_by_path["nested/evidence.bin"] == _sha256(file_b_content)
+
+    inventory = json.loads((case_root / "meta" / "artifacts_inventory.json").read_text(encoding="utf-8"))
+    assert inventory["artifact_count"] == 2
+
+    solution_state = json.loads((case_root / "meta" / "solution_state.json").read_text(encoding="utf-8"))
+    assert solution_state["status"] == "initialized"
+    assert solution_state["artifact_count"] == 2
+
+    changelog = (case_root / "notes" / "changelog.md").read_text(encoding="utf-8")
+    assert "Case initialized from artifacts" in changelog
+
+
+def test_init_fails_when_case_already_exists(tmp_path: Path) -> None:
+    artifacts_file = tmp_path / "artifact.txt"
+    artifacts_file.write_text("abc", encoding="utf-8")
+
+    first = runner.invoke(
+        app,
+        [
+            "init",
+            "Repeat Case",
+            "--artifacts",
+            str(artifacts_file),
+            "--title",
+            "Repeat Case",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+    second = runner.invoke(
+        app,
+        [
+            "init",
+            "Repeat Case",
+            "--artifacts",
+            str(artifacts_file),
+            "--title",
+            "Repeat Case",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert first.exit_code == 0
+    assert second.exit_code == 1
+    assert "Case directory already exists" in second.stdout
