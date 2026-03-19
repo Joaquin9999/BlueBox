@@ -10,6 +10,10 @@
 - Modelo de workspace de caso y templates base implementados.
 - Comando `bluebox init` implementado para inicializar casos desde artefactos.
 
+## Guía de uso
+
+- Consulta `USAGE_GUIDE.md` para flujo operativo completo paso a paso.
+
 ## Qué contiene el repositorio
 
 - `bluebox/`: paquete Python principal y CLI (`bluebox.cli.app`).
