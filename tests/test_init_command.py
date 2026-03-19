@@ -48,7 +48,7 @@ def test_init_command_creates_case_workspace(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
 
-    case_root = tmp_path / "suspicious-beaconing"
+    case_root = tmp_path / "cases" / "suspicious-beaconing"
     assert case_root.is_dir()
 
     original_a = case_root / "original" / "log.txt"

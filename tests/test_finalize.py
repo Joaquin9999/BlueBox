@@ -32,7 +32,7 @@ def _init_case(tmp_path: Path, name: str = "Finalize Case") -> Path:
     )
     assert init_result.exit_code == 0
 
-    case_root = tmp_path / name.lower().replace(" ", "-")
+    case_root = tmp_path / "cases" / name.lower().replace(" ", "-")
     evidence_summary = {
         "case_name": case_root.name,
         "generated_at": "2026-03-18T00:00:00+00:00",

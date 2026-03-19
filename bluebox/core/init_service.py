@@ -59,7 +59,9 @@ def initialize_case_from_artifacts(
     context: str,
 ) -> Path:
     spec = CaseWorkspaceSpec(raw_name=challenge_name, title=title, context=context)
-    planned_case_root = base_path / spec.case_name
+    safe_title = spec.title.replace('"', '\\"')
+    safe_context = spec.context.replace('"', '\\"')
+    planned_case_root = base_path / "cases" / spec.case_name
     if planned_case_root.exists():
         raise FileExistsError(f"Case directory already exists: {planned_case_root}")
 
@@ -129,6 +131,50 @@ def initialize_case_from_artifacts(
             "created_at": timestamp,
             "updated_at": timestamp,
         },
+    )
+
+    _write_json(
+        case_root / "challenge" / "hashes.json",
+        {
+            "case_name": spec.case_name,
+            "generated_at": timestamp,
+            "algorithm": "sha256",
+            "files": hashes_entries,
+        },
+    )
+
+    _write_json(
+        case_root / "challenge" / "manifest.json",
+        {
+            "case_name": spec.case_name,
+            "generated_at": timestamp,
+            "source_path": str(artifacts_path),
+            "evidence_mode": "legacy-copy",
+            "artifact_count": len(inventory_entries),
+            "artifacts": inventory_entries,
+        },
+    )
+
+    (case_root / "challenge" / "source_ref.txt").write_text(
+        f"source_path={artifacts_path}\nmode=legacy-copy\ncreated_at={timestamp}\n",
+        encoding="utf-8",
+    )
+
+    (case_root / "case.yaml").write_text(
+        "\n".join(
+            [
+                f'case_name: "{spec.case_name}"',
+                f'title: "{safe_title}"',
+                'status: "initialized"',
+                "profile: null",
+                'copy_mode: "legacy-copy"',
+                f'created_at: "{timestamp}"',
+                f'updated_at: "{timestamp}"',
+                f'context: "{safe_context}"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
     )
 
     (case_root / "notes" / "changelog.md").write_text(

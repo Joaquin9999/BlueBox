@@ -56,7 +56,7 @@ def test_project_set_and_show(tmp_path, monkeypatch) -> None:
     )
     assert init_result.exit_code == 0
 
-    case_path = tmp_path / "project-set-demo"
+    case_path = tmp_path / "cases" / "project-set-demo"
 
     set_result = runner.invoke(app, ["project", "set", str(case_path)])
     assert set_result.exit_code == 0

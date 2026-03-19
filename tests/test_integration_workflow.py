@@ -33,7 +33,7 @@ def test_integration_init_classify_validate(tmp_path: Path) -> None:
     )
     assert init_result.exit_code == 0
 
-    case_root = tmp_path / "integration-case"
+    case_root = tmp_path / "cases" / "integration-case"
 
     classify_result = runner.invoke(app, ["classify", str(case_root)])
     assert classify_result.exit_code == 0

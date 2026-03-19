@@ -34,7 +34,7 @@ def _init_and_classify_case(tmp_path: Path) -> Path:
     )
     assert init_result.exit_code == 0
 
-    case_root = tmp_path / "solve-case"
+    case_root = tmp_path / "cases" / "solve-case"
 
     classify_result = runner.invoke(app, ["classify", str(case_root)])
     assert classify_result.exit_code == 0

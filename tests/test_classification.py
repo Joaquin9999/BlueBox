@@ -25,7 +25,7 @@ def _init_case(tmp_path: Path, challenge_name: str, artifacts_dir: Path) -> Path
         ],
     )
     assert result.exit_code == 0
-    return tmp_path / challenge_name.lower().replace(" ", "-")
+    return tmp_path / "cases" / challenge_name.lower().replace(" ", "-")
 
 
 def test_classify_updates_case_state_and_notes(tmp_path: Path) -> None:
