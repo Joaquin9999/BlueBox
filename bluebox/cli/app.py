@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import sys
 from datetime import UTC, datetime
@@ -29,7 +30,7 @@ app = typer.Typer(
     no_args_is_help=True,
     help="BlueBox CLI",
 )
-console = Console()
+console = Console(width=200) if os.getenv("GITHUB_ACTIONS") else Console()
 ACTIVE_PROJECT_FILE = Path(".bluebox") / "active_case.txt"
 PROJECT_HISTORY_FILE = Path(".bluebox") / "projects_history.txt"
 RECENT_CASES_FILE = Path(".bluebox") / "recent_cases.json"
