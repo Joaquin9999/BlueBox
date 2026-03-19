@@ -7,13 +7,21 @@
 - Proyecto inicial con CLI funcional.
 - Comando disponible: `bluebox --help`.
 - Flujo de trabajo por ramas de fase activo.
+- Modelo de workspace de caso y templates base implementados.
 
 ## Qué contiene el repositorio
 
 - `bluebox/`: paquete Python principal y CLI (`bluebox.cli.app`).
+- `bluebox/core/`: modelo de caso, sanitización, render y generador determinista de estructura.
 - `cli/`, `core/`, `templates/`, `scripts/`, `tests/`: estructura base para evolución por fases.
 - `pyproject.toml`: metadatos del paquete y entrypoint del comando `bluebox`.
 - `Makefile`: helper mínimo para tareas futuras.
+
+## Templates de caso incluidos
+
+- `templates/case/notes/*`: `writeup.md`, `findings.md`, `changelog.md`, `hypotheses.md`, `writeup_final.md`.
+- `templates/case/meta/*`: `solution_state.json`, `artifacts_inventory.json`, `hashes.json`, `evidence_summary.json`.
+- `templates/case/.codex/*`: `prompt.txt`, `context.md`.
 
 ## Requisitos
 
