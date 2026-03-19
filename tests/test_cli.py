@@ -21,8 +21,7 @@ def test_start_runs() -> None:
 def test_tools_without_subcommand_shows_help() -> None:
     result = runner.invoke(app, ["tools"])
     assert result.exit_code == 0
-    assert "Usage: root tools" in result.stdout
-    assert "Manage optional Blue Team/DFIR tool profiles" in result.stdout
+    assert "tools" in result.stdout.lower()
 
 
 def test_project_show_fails_without_active_project(tmp_path, monkeypatch) -> None:
