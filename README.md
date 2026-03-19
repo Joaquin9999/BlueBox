@@ -14,6 +14,10 @@
 
 - Consulta `USAGE_GUIDE.md` para flujo operativo completo paso a paso.
 
+## Guía de instalación
+
+- Consulta `INSTALL.md` para instalación desde cero, verificación y troubleshooting.
+
 ## Qué contiene el repositorio
 
 - `bluebox/`: paquete Python principal y CLI (`bluebox.cli.app`).
