@@ -23,6 +23,7 @@ python -m pip install .
 bluebox --help
 bluebox start
 bluebox wizard
+bluebox home
 bluebox version
 bluebox doctor
 ```
@@ -177,6 +178,7 @@ bluebox check [<case-path>]
 bluebox inspect [<case-path>]
 bluebox run [<case-path>] [--no-launch]
 bluebox info [<case-path>]
+bluebox home
 bluebox report [<case-path>] [--allow-incomplete]
 bluebox wizard [--base-path <path>] [--create-case --name <name> --artifacts <path> --title <title>]
 bluebox next [<case-path>]

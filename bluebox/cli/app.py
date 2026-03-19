@@ -266,6 +266,70 @@ def _is_nonempty_file(path: Path) -> bool:
     return path.is_file() and bool(path.read_text(encoding="utf-8").strip())
 
 
+def _read_settings() -> dict[str, str]:
+    settings_file = _settings_file()
+    if not settings_file.is_file():
+        return {}
+
+    try:
+        payload = yaml.safe_load(settings_file.read_text(encoding="utf-8"))
+    except yaml.YAMLError:
+        return {}
+
+    if not isinstance(payload, dict):
+        return {}
+
+    output: dict[str, str] = {}
+    for key, value in payload.items():
+        if isinstance(key, str) and isinstance(value, str):
+            output[key] = value
+    return output
+
+
+def _compute_progress(case_path: Path) -> tuple[int, list[str], list[str]]:
+    checks: list[tuple[str, bool]] = []
+    checks.append(("case created", case_path.is_dir()))
+
+    active_case = _read_active_case()
+    checks.append(("active case registered", active_case is not None and active_case == case_path.resolve()))
+    checks.append(("manifest generated", (case_path / "challenge" / "manifest.json").is_file()))
+    checks.append(("hashes generated", (case_path / "challenge" / "hashes.json").is_file()))
+
+    profile_selected = False
+    case_yaml = case_path / "case.yaml"
+    if case_yaml.is_file():
+        try:
+            case_payload = yaml.safe_load(case_yaml.read_text(encoding="utf-8"))
+            profile_value = case_payload.get("profile") if isinstance(case_payload, dict) else None
+            profile_selected = isinstance(profile_value, str) and bool(profile_value.strip())
+        except yaml.YAMLError:
+            profile_selected = False
+    checks.append(("profile selected", profile_selected))
+
+    commands_log = case_path / "meta" / "commands.log"
+    tool_profile_checked = False
+    if commands_log.is_file():
+        text = commands_log.read_text(encoding="utf-8").lower()
+        tool_profile_checked = "tools check" in text or "setup" in text
+    checks.append(("tool profile checked", tool_profile_checked))
+
+    checks.append(("compact context generated", _is_nonempty_file(case_path / "agent" / "context.md")))
+
+    reports_dir = case_path / "work" / "reports"
+    has_report = reports_dir.is_dir() and any(path.is_file() for path in reports_dir.rglob("*"))
+    checks.append(("at least one report generated", has_report))
+
+    checks.append(("log updated", _is_nonempty_file(case_path / "memory" / "log.md")))
+    checks.append(("candidate flag found", _is_nonempty_file(case_path / "output" / "final_flag.txt")))
+    checks.append(("writeup generated", _is_nonempty_file(case_path / "output" / "writeup.md")))
+    checks.append(("writeup_final generated", _is_nonempty_file(case_path / "output" / "writeup_final.md")))
+
+    completed = [label for label, passed in checks if passed]
+    pending = [label for label, passed in checks if not passed]
+    score = int(round((len(completed) / len(checks)) * 100)) if checks else 0
+    return score, completed, pending
+
+
 def _compute_next_action(case_path: Path) -> str:
     state_path = case_path / "meta" / "solution_state.json"
     if state_path.is_file():
@@ -958,8 +1022,65 @@ def run_case(
 def info_case(
     case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
 ) -> None:
-    """Product alias for `status`."""
-    status(case_path)
+    """Show enriched operational status and progress score."""
+    resolved_case_path = _resolve_case_path(case_path, "info")
+    try:
+        snapshot = get_case_status(resolved_case_path)
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    score, completed, pending = _compute_progress(resolved_case_path)
+    recommendation = _compute_next_action(resolved_case_path)
+    settings = _read_settings()
+
+    console.print(f"[bold]Case:[/bold] {snapshot.case_name}")
+    console.print(f"[bold]Title:[/bold] {snapshot.title}")
+    console.print(f"[bold]Status:[/bold] {snapshot.status}")
+    console.print(f"[bold]Category:[/bold] {snapshot.category or 'unclassified'}")
+    console.print(f"[bold]Artifacts:[/bold] {snapshot.artifact_count}")
+    console.print(f"[bold]Active hypotheses:[/bold] {snapshot.active_hypotheses_count}")
+    console.print(f"[bold]Latest update:[/bold] {snapshot.latest_update or 'none'}")
+    console.print(f"[bold]Progress:[/bold] {score}%")
+    console.print(f"[bold]Completed:[/bold] {', '.join(completed[:5]) if completed else 'none'}")
+    console.print(f"[bold]Pending:[/bold] {', '.join(pending[:5]) if pending else 'none'}")
+    if settings:
+        console.print(f"[bold]Default profile:[/bold] {settings.get('default_profile', 'n/a')}")
+    console.print(f"[bold]Next action:[/bold] {recommendation}")
+
+
+@app.command()
+def home() -> None:
+    """Show a compact dashboard for active case and workspace state."""
+    active_case = _read_active_case()
+    recent_cases = _read_recent_cases()[:5]
+    settings = _read_settings()
+    report = build_doctor_report()
+    missing_tools = [check.name for check in report.checks if not check.available]
+
+    console.print("[bold]BlueBox Home[/bold]")
+    if active_case is None:
+        console.print("[bold]Active case:[/bold] none")
+        console.print("[bold]Suggested next:[/bold] [cyan]bluebox new[/cyan]")
+    else:
+        console.print(f"[bold]Active case:[/bold] {active_case}")
+        if _is_case_workspace(active_case):
+            score, _, _ = _compute_progress(active_case)
+            console.print(f"[bold]Progress:[/bold] {score}%")
+            console.print(f"[bold]Suggested next:[/bold] {_compute_next_action(active_case)}")
+
+    if recent_cases:
+        console.print("[bold]Recent cases:[/bold]")
+        for entry in recent_cases:
+            console.print(f"- {entry['name']} ({entry['used_at'] or 'unknown'})")
+    else:
+        console.print("[bold]Recent cases:[/bold] none")
+
+    console.print(f"[bold]Current profile:[/bold] {settings.get('default_profile', 'minimal') if settings else 'minimal'}")
+    if missing_tools:
+        console.print(f"[bold]Tool health:[/bold] missing {', '.join(missing_tools)}")
+    else:
+        console.print("[bold]Tool health:[/bold] all core checks available")
 
 
 @app.command("report")
