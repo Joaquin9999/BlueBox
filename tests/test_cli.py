@@ -177,3 +177,66 @@ def test_project_list_existing_only_when_none_exist(tmp_path, monkeypatch) -> No
     result = runner.invoke(app, ["project", "list", "--existing-only"])
     assert result.exit_code == 0
     assert "No existing projects found in history" in result.stdout
+
+
+def test_project_list_compact_outputs_plain_paths(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    artifacts_file = tmp_path / "artifact.txt"
+    artifacts_file.write_text("abc", encoding="utf-8")
+
+    init_result = runner.invoke(
+        app,
+        [
+            "init",
+            "--name",
+            "Compact Project",
+            "--artifacts",
+            str(artifacts_file),
+            "--title",
+            "Compact Project",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+    assert init_result.exit_code == 0
+
+    result = runner.invoke(app, ["project", "list", "--compact"])
+    assert result.exit_code == 0
+    assert "Known projects" not in result.stdout
+    assert "(active)" not in result.stdout
+    assert "compact-project" in result.stdout
+
+
+def test_project_prune_missing_removes_missing_entries(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    artifacts_file = tmp_path / "artifact.txt"
+    artifacts_file.write_text("abc", encoding="utf-8")
+
+    init_result = runner.invoke(
+        app,
+        [
+            "init",
+            "--name",
+            "Prune Existing",
+            "--artifacts",
+            str(artifacts_file),
+            "--title",
+            "Prune Existing",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+    assert init_result.exit_code == 0
+
+    missing_case = tmp_path / "missing-case"
+    history_file = tmp_path / ".bluebox" / "projects_history.txt"
+    history_content = history_file.read_text(encoding="utf-8")
+    history_file.write_text(f"{missing_case}\n{history_content}", encoding="utf-8")
+
+    prune_result = runner.invoke(app, ["project", "prune-missing"])
+    assert prune_result.exit_code == 0
+    assert "removed=1" in prune_result.stdout
+
+    list_result = runner.invoke(app, ["project", "list"])
+    assert "missing-case" not in list_result.stdout
+    assert "prune-existing" in list_result.stdout

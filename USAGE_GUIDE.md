@@ -149,6 +149,8 @@ bluebox project show
 bluebox project set <case-path>
 bluebox project list
 bluebox project list --existing-only
+bluebox project list --compact
+bluebox project prune-missing
 bluebox project clear
 bluebox init --name <name> --artifacts <path> --title <title>
 bluebox classify [<case-path>]

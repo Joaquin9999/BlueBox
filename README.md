@@ -86,6 +86,8 @@ bluebox project show
 bluebox project set ./suspicious-beaconing
 bluebox project list
 bluebox project list --existing-only
+bluebox project list --compact
+bluebox project prune-missing
 bluebox project clear
 bluebox tools list
 bluebox tools check base
@@ -167,6 +169,8 @@ bluebox tools install network --apply
 - `bluebox project set <case-path>`: cambia el proyecto activo para ejecutar comandos sin pasar ruta.
 - `bluebox project list`: lista proyectos conocidos en el historial del workspace.
 - `bluebox project list --existing-only`: muestra solo proyectos cuya ruta todavía existe.
+- `bluebox project list --compact`: muestra solo rutas, una por línea.
+- `bluebox project prune-missing`: limpia del historial rutas que ya no existen.
 - `bluebox project clear`: limpia el proyecto activo actual.
 
 ## Sobre entorno virtual y sistema

@@ -85,6 +85,16 @@ def _read_project_history() -> list[Path]:
     return [Path(entry).expanduser().resolve() for entry in entries]
 
 
+def _write_project_history(projects: list[Path]) -> None:
+    history_file = _project_history_file()
+    history_file.parent.mkdir(parents=True, exist_ok=True)
+    normalized = [str(project.resolve()) for project in projects]
+    if not normalized:
+        history_file.write_text("", encoding="utf-8")
+        return
+    history_file.write_text("\n".join(normalized[:50]) + "\n", encoding="utf-8")
+
+
 def _is_case_workspace(case_path: Path) -> bool:
     return (case_path / "meta" / "solution_state.json").is_file()
 
@@ -214,6 +224,11 @@ def project_list(
         "--existing-only",
         help="Show only projects that currently exist on disk.",
     ),
+    compact: bool = typer.Option(
+        False,
+        "--compact",
+        help="Show compact output (one plain path per line, no status labels).",
+    ),
 ) -> None:
     """List known projects from workspace history."""
     projects = _read_project_history()
@@ -230,6 +245,11 @@ def project_list(
         console.print("[yellow]No existing projects found in history.[/yellow]")
         return
 
+    if compact:
+        for project_path in projects:
+            console.print(project_path)
+        return
+
     console.print("[bold]Known projects:[/bold]")
     for project_path in projects:
         is_active = active_case is not None and project_path == active_case
@@ -239,6 +259,23 @@ def project_list(
         if not exists:
             status = f"{status}, missing"
         console.print(f"- [{color}]{project_path}[/{color}] ({status})")
+
+
+@project_app.command("prune-missing")
+def project_prune_missing() -> None:
+    """Remove non-existing project paths from workspace history."""
+    projects = _read_project_history()
+    if not projects:
+        console.print("[yellow]No projects in history yet.[/yellow]")
+        return
+
+    existing_projects = [project_path for project_path in projects if project_path.exists()]
+    removed_count = len(projects) - len(existing_projects)
+    _write_project_history(existing_projects)
+
+    console.print(
+        f"[green]History pruned.[/green] removed={removed_count}, kept={len(existing_projects)}"
+    )
 
 
 @app.command()
