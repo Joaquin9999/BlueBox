@@ -47,6 +47,8 @@ bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Sus
 bluebox validate ./suspicious-beaconing
 bluebox classify ./suspicious-beaconing
 bluebox solve ./suspicious-beaconing
+bluebox status ./suspicious-beaconing
+bluebox doctor
 ```
 
 ## Qué hace `bluebox init`
@@ -88,6 +90,26 @@ bluebox solve ./suspicious-beaconing
 - Registra acciones en `meta/commands.log`.
 - Actualiza `meta/solution_state.json` a estado `solving`.
 - Lanza `codex` en el directorio del caso (o prepara sin lanzar con `--no-launch`).
+
+## Qué hace `bluebox status`
+
+- Muestra resumen operativo del caso:
+	- nombre del caso
+	- título
+	- estado actual
+	- categoría
+	- número de artefactos
+	- cantidad de hipótesis activas
+	- última actualización registrada en changelog
+
+## Qué hace `bluebox doctor`
+
+- Ejecuta diagnóstico rápido del entorno:
+	- versión de Python en uso
+	- plataforma del sistema
+	- disponibilidad de `uv`
+	- disponibilidad de `codex`
+	- disponibilidad de `git`
 
 ## Ejecución de pruebas
 
