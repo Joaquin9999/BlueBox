@@ -416,12 +416,86 @@ def init(
             artifacts_path=artifacts.resolve(),
             title=title,
             context=context,
+            evidence_mode="legacy-copy",
         )
-    except (FileNotFoundError, FileExistsError) as error:
+    except (FileNotFoundError, FileExistsError, ValueError) as error:
         console.print(f"[red]Error:[/red] {error}")
         raise typer.Exit(code=1) from error
 
     console.print(f"[green]Initialized case:[/green] {case_root}")
+    _save_active_case(case_root)
+    console.print(f"[cyan]Active project:[/cyan] {case_root}")
+
+
+@app.command("new")
+def new_case(
+    challenge_name: str | None = typer.Option(None, "--name", "-n", help="Raw challenge name."),
+    artifacts: Path | None = typer.Option(None, "--artifacts", help="Artifacts path (file or directory)."),
+    title: str | None = typer.Option(None, "--title", help="Human-readable challenge title."),
+    context: str | None = typer.Option(None, "--context", help="Initial case context."),
+    base_path: Path | None = typer.Option(None, "--base-path", help="Workspace root directory."),
+    evidence_mode: str | None = typer.Option(
+        None,
+        "--evidence-mode",
+        help="reference-only | lightweight-copy | full-copy",
+    ),
+) -> None:
+    """Create a new case with safer defaults and evidence-mode options."""
+    interactive_mode = challenge_name is None or artifacts is None or title is None
+
+    if challenge_name is None or not challenge_name.strip():
+        challenge_name = typer.prompt("Challenge name")
+
+    if artifacts is None:
+        artifacts = Path(typer.prompt("Artifacts path (file or directory)")).expanduser()
+
+    if title is None:
+        title = typer.prompt("Case title")
+
+    if context is None:
+        if interactive_mode:
+            context = typer.prompt("Initial case context (optional)", default="", show_default=False)
+        else:
+            context = ""
+
+    if base_path is None:
+        if interactive_mode:
+            base_path = Path(typer.prompt("Workspace base path", default=".", show_default=True)).expanduser()
+        else:
+            base_path = Path(".")
+
+    selected_mode = (evidence_mode or "").strip().lower()
+    if not selected_mode:
+        if interactive_mode:
+            console.print("Evidence mode options: reference-only, lightweight-copy, full-copy")
+            selected_mode = typer.prompt("Evidence mode", default="reference-only").strip().lower()
+        else:
+            selected_mode = "reference-only"
+
+    if selected_mode not in {"reference-only", "lightweight-copy", "full-copy"}:
+        console.print("[red]Error:[/red] Invalid evidence mode. Use reference-only, lightweight-copy, or full-copy.")
+        raise typer.Exit(code=1)
+
+    if selected_mode == "full-copy" and artifacts.is_dir():
+        file_count = len([path for path in artifacts.rglob("*") if path.is_file()])
+        if file_count > 1000:
+            console.print("[yellow]Warning:[/yellow] Full copy requested for a large directory.")
+
+    try:
+        case_root = initialize_case_from_artifacts(
+            base_path=base_path.resolve(),
+            challenge_name=challenge_name,
+            artifacts_path=artifacts.resolve(),
+            title=title,
+            context=context,
+            evidence_mode=selected_mode,
+        )
+    except (FileNotFoundError, FileExistsError, ValueError) as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    console.print(f"[green]Created case:[/green] {case_root}")
+    console.print(f"[cyan]Evidence mode:[/cyan] {selected_mode}")
     _save_active_case(case_root)
     console.print(f"[cyan]Active project:[/cyan] {case_root}")
 

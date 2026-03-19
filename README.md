@@ -76,6 +76,7 @@ bluebox start
 bluebox setup --mode all
 bluebox setup --mode tool --tool jq
 bluebox version
+bluebox new --name "Safe Demo" --artifacts ./examples/safe-demo/artifacts --title "Safe Demo"
 bluebox init
 bluebox init --name "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
 bluebox validate
@@ -107,6 +108,12 @@ bluebox tools install network --apply
 - Inicializa `meta/solution_state.json` con estado `initialized`.
 - Escribe la primera entrada en `notes/changelog.md`.
 - Guarda el proyecto activo en `.bluebox/active_case.txt` para usar otros comandos sin ruta explícita.
+
+## Qué hace `bluebox new`
+
+- Crea casos en `cases/<case-name>` con modo de evidencia seguro por defecto.
+- Soporta `--evidence-mode` con: `reference-only`, `lightweight-copy`, `full-copy`.
+- Por defecto usa `reference-only` para evitar copias pesadas innecesarias.
 
 ## Qué valida `bluebox validate`
 

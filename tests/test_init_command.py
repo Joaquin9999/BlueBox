@@ -171,3 +171,51 @@ def test_classify_uses_active_project_when_path_is_omitted(tmp_path: Path, monke
     assert "Classified:" in classify_result.stdout
 
 
+def test_new_command_defaults_to_reference_only(tmp_path: Path) -> None:
+    artifacts_dir = tmp_path / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (artifacts_dir / "sample.log").write_text("demo", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "new",
+            "--name",
+            "Reference Case",
+            "--artifacts",
+            str(artifacts_dir),
+            "--title",
+            "Reference Case",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0
+    case_root = tmp_path / "cases" / "reference-case"
+    assert case_root.is_dir()
+
+    manifest = json.loads((case_root / "challenge" / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["evidence_mode"] == "reference-only"
+
+
+def test_new_command_rejects_artifacts_equal_base_path(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        [
+            "new",
+            "--name",
+            "Invalid Paths",
+            "--artifacts",
+            str(tmp_path),
+            "--title",
+            "Invalid Paths",
+            "--base-path",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Artifacts path must be different from base path" in result.stdout
+
+
