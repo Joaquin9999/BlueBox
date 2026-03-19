@@ -172,6 +172,11 @@ bluebox cases clone <case-name|case-path> <new-name>
 bluebox use <case-name|case-path>
 bluebox current
 bluebox open [<case-name|case-path>]
+bluebox check [<case-path>]
+bluebox inspect [<case-path>]
+bluebox run [<case-path>] [--no-launch]
+bluebox info [<case-path>]
+bluebox report [<case-path>] [--allow-incomplete]
 bluebox init --name <name> --artifacts <path> --title <title>
 bluebox new --name <name> --artifacts <path> --title <title> [--evidence-mode reference-only|lightweight-copy|full-copy]
 bluebox classify [<case-path>]

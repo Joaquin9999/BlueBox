@@ -772,6 +772,52 @@ def new_case(
     console.print(f"[cyan]Active project:[/cyan] {case_root}")
 
 
+@app.command("check")
+def check_case(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
+    """Product alias for `validate`."""
+    validate(case_path)
+
+
+@app.command("inspect")
+def inspect_case(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
+    """Product alias for `classify`."""
+    classify(case_path)
+
+
+@app.command("run")
+def run_case(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+    no_launch: bool = typer.Option(False, "--no-launch", help="Prepare context without launching Codex CLI."),
+) -> None:
+    """Product alias for `solve`."""
+    solve(case_path, no_launch=no_launch)
+
+
+@app.command("info")
+def info_case(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
+    """Product alias for `status`."""
+    status(case_path)
+
+
+@app.command("report")
+def report_case(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+    allow_incomplete: bool = typer.Option(
+        False,
+        "--allow-incomplete",
+        help="Generate a clearly marked incomplete final writeup when case is not solved.",
+    ),
+) -> None:
+    """Product alias for `finalize`."""
+    finalize(case_path, allow_incomplete=allow_incomplete)
+
+
 @app.command()
 def validate(
     case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
