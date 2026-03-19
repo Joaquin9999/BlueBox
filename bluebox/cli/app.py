@@ -1,7 +1,10 @@
 import json
+import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 
 import typer
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 
@@ -28,15 +31,22 @@ app = typer.Typer(
 console = Console()
 ACTIVE_PROJECT_FILE = Path(".bluebox") / "active_case.txt"
 PROJECT_HISTORY_FILE = Path(".bluebox") / "projects_history.txt"
+RECENT_CASES_FILE = Path(".bluebox") / "recent_cases.json"
+SETTINGS_FILE = Path(".bluebox") / "settings.yaml"
 project_app = typer.Typer(
     no_args_is_help=True,
     help="Manage active BlueBox project context.",
+)
+cases_app = typer.Typer(
+    no_args_is_help=True,
+    help="Manage case context with vNext-style commands.",
 )
 tools_app = typer.Typer(
     no_args_is_help=False,
     help="Manage optional Blue Team/DFIR tool profiles.",
 )
 app.add_typer(project_app, name="project")
+app.add_typer(cases_app, name="cases")
 app.add_typer(tools_app, name="tools")
 
 
@@ -58,12 +68,129 @@ def _project_history_file() -> Path:
     return Path.cwd() / PROJECT_HISTORY_FILE
 
 
+def _recent_cases_file() -> Path:
+    return Path.cwd() / RECENT_CASES_FILE
+
+
+def _settings_file() -> Path:
+    return Path.cwd() / SETTINGS_FILE
+
+
+def _ensure_settings_file() -> None:
+    settings_file = _settings_file()
+    settings_file.parent.mkdir(parents=True, exist_ok=True)
+    if settings_file.is_file():
+        return
+
+    defaults = {
+        "default_profile": "minimal",
+        "default_evidence_mode": "reference-only",
+        "default_launcher": "no-launch",
+    }
+    settings_file.write_text(yaml.safe_dump(defaults, sort_keys=False), encoding="utf-8")
+
+
+def _read_recent_cases() -> list[dict[str, str]]:
+    recent_file = _recent_cases_file()
+    if not recent_file.is_file():
+        return []
+
+    try:
+        payload = json.loads(recent_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(payload, list):
+        return []
+
+    recent_cases: list[dict[str, str]] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        path_value = item.get("path")
+        if not isinstance(path_value, str) or not path_value.strip():
+            continue
+
+        name_value = item.get("name")
+        if not isinstance(name_value, str) or not name_value.strip():
+            name_value = Path(path_value).name
+
+        used_at = item.get("used_at")
+        if not isinstance(used_at, str) or not used_at.strip():
+            used_at = ""
+
+        recent_cases.append(
+            {
+                "name": name_value.strip(),
+                "path": str(Path(path_value).expanduser().resolve()),
+                "used_at": used_at,
+            }
+        )
+
+    return recent_cases
+
+
+def _write_recent_cases(recent_cases: list[dict[str, str]]) -> None:
+    recent_file = _recent_cases_file()
+    recent_file.parent.mkdir(parents=True, exist_ok=True)
+    recent_file.write_text(json.dumps(recent_cases[:20], indent=2), encoding="utf-8")
+
+
+def _touch_recent_case(case_root: Path) -> None:
+    normalized_path = str(case_root.resolve())
+    case_name = case_root.name
+    timestamp = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+    entries = _read_recent_cases()
+    updated = [
+        {
+            "name": case_name,
+            "path": normalized_path,
+            "used_at": timestamp,
+        }
+    ]
+    for entry in entries:
+        if entry["path"] == normalized_path:
+            continue
+        updated.append(entry)
+
+    _write_recent_cases(updated)
+
+
+def _resolve_case_reference(case_ref: str) -> Path:
+    candidate = Path(case_ref).expanduser()
+    candidate_with_cwd = (Path.cwd() / candidate).resolve()
+    if _is_case_workspace(candidate_with_cwd):
+        return candidate_with_cwd
+
+    direct_candidate = candidate.resolve()
+    if _is_case_workspace(direct_candidate):
+        return direct_candidate
+
+    named_candidate = (Path.cwd() / "cases" / case_ref).resolve()
+    if _is_case_workspace(named_candidate):
+        return named_candidate
+
+    recent_case_match = None
+    for entry in _read_recent_cases():
+        if entry["name"] == case_ref:
+            recent_case_match = Path(entry["path"]).expanduser().resolve()
+            break
+
+    if recent_case_match is not None and _is_case_workspace(recent_case_match):
+        return recent_case_match
+
+    raise ValueError(f"Case not found: {case_ref}")
+
+
 def _save_active_case(case_root: Path) -> None:
     active_file = _active_project_file()
     active_file.parent.mkdir(parents=True, exist_ok=True)
     resolved_case_root = case_root.resolve()
     active_file.write_text(str(resolved_case_root), encoding="utf-8")
     _append_project_history(resolved_case_root)
+    _touch_recent_case(resolved_case_root)
+    _ensure_settings_file()
 
 
 def _append_project_history(case_root: Path) -> None:
@@ -161,12 +288,14 @@ def start() -> None:
 
 [bold]2) Flujo recomendado por proyecto[/bold]
 - Después de [cyan]bluebox init[/cyan], BlueBox guarda el proyecto activo en [cyan].bluebox/active_case.txt[/cyan]
+- BlueBox también registra recientes en [cyan].bluebox/recent_cases.json[/cyan] y defaults en [cyan].bluebox/settings.yaml[/cyan]
 - Puedes ejecutar sin ruta: [cyan]bluebox classify[/cyan], [cyan]validate[/cyan], [cyan]solve[/cyan], [cyan]status[/cyan], [cyan]finalize[/cyan]
 - También puedes pasar ruta explícita: [cyan]bluebox classify <case-path>[/cyan]
 
 [bold]3) Comandos principales[/bold]
 - [cyan]doctor[/cyan]: diagnóstico de entorno
 - [cyan]project show/set/list/clear[/cyan]: ver, cambiar, listar y limpiar proyecto activo
+- [cyan]cases list/current/use/open/clear[/cyan]: comandos vNext para sesión de casos
 - [cyan]tools list/check/install[/cyan]: perfiles DFIR/Blue Team opcionales
 - [cyan]version[/cyan]: versión instalada
 
@@ -371,6 +500,149 @@ def project_prune_missing() -> None:
     console.print(
         f"[green]History pruned.[/green] removed={removed_count}, kept={len(existing_projects)}"
     )
+
+
+@cases_app.command("list")
+def cases_list(existing_only: bool = typer.Option(False, "--existing-only", help="List only existing case paths.")) -> None:
+    """List recently used cases in this workspace."""
+    recent_cases = _read_recent_cases()
+    if existing_only:
+        recent_cases = [entry for entry in recent_cases if Path(entry["path"]).exists()]
+
+    if not recent_cases:
+        console.print("[yellow]No recent cases found.[/yellow]")
+        console.print("Hint: run [cyan]bluebox new[/cyan] or [cyan]bluebox cases use <case>[/cyan].")
+        return
+
+    active_case = _read_active_case()
+    console.print("[bold]Recent cases:[/bold]")
+    for entry in recent_cases:
+        path = Path(entry["path"]).expanduser().resolve()
+        is_active = active_case is not None and path == active_case
+        marker = "active" if is_active else "recent"
+        exists = "exists" if path.exists() else "missing"
+        console.print(f"- {entry['name']}: {path} ({marker}, {exists})")
+
+
+@cases_app.command("current")
+def cases_current() -> None:
+    """Show active case path."""
+    active_case = _read_active_case()
+    if active_case is None:
+        console.print("[red]Error:[/red] No active case set.")
+        raise typer.Exit(code=1)
+
+    if not active_case.exists():
+        console.print(f"[yellow]Warning:[/yellow] Active case path no longer exists: {active_case}")
+        raise typer.Exit(code=1)
+
+    console.print(f"[green]Current case:[/green] {active_case}")
+
+
+@cases_app.command("use")
+def cases_use(case_ref: str = typer.Argument(..., help="Case name or path.")) -> None:
+    """Set active case by name or path."""
+    try:
+        resolved_case = _resolve_case_reference(case_ref)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    _save_active_case(resolved_case)
+    console.print(f"[green]Active case set:[/green] {resolved_case}")
+
+
+@cases_app.command("open")
+def cases_open(case_ref: str | None = typer.Argument(None, help="Optional case name or path.")) -> None:
+    """Open case directory in file browser."""
+    try:
+        case_path = _resolve_case_reference(case_ref) if case_ref else _resolve_case_path(None, "cases open")
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    typer.launch(str(case_path), locate=False)
+    console.print(f"[green]Opened case:[/green] {case_path}")
+
+
+@cases_app.command("clear")
+def cases_clear() -> None:
+    """Clear active case pointer."""
+    project_clear()
+
+
+@cases_app.command("archive")
+def cases_archive(
+    case_ref: str = typer.Argument(..., help="Case name or path."),
+    destination: Path | None = typer.Option(None, "--to", help="Archive destination directory."),
+) -> None:
+    """Archive a case directory into exports."""
+    try:
+        case_path = _resolve_case_reference(case_ref)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    if destination is None:
+        destination = Path.cwd() / "exports"
+
+    destination = destination.expanduser().resolve()
+    destination.mkdir(parents=True, exist_ok=True)
+    target_path = destination / case_path.name
+
+    if target_path.exists():
+        console.print(f"[red]Error:[/red] Archive target already exists: {target_path}")
+        raise typer.Exit(code=1)
+
+    shutil.move(str(case_path), str(target_path))
+
+    active_case = _read_active_case()
+    if active_case is not None and active_case == case_path:
+        active_file = _active_project_file()
+        if active_file.is_file():
+            active_file.unlink()
+
+    console.print(f"[green]Archived case:[/green] {target_path}")
+
+
+@cases_app.command("clone")
+def cases_clone(
+    case_ref: str = typer.Argument(..., help="Source case name or path."),
+    new_name: str = typer.Argument(..., help="New case folder name."),
+) -> None:
+    """Clone a case into the same parent directory with a new name."""
+    try:
+        source_case = _resolve_case_reference(case_ref)
+    except ValueError as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    target_case = source_case.parent / new_name
+    if target_case.exists():
+        console.print(f"[red]Error:[/red] Target already exists: {target_case}")
+        raise typer.Exit(code=1)
+
+    shutil.copytree(source_case, target_case)
+    _save_active_case(target_case)
+    console.print(f"[green]Cloned case:[/green] {target_case}")
+
+
+@app.command("current")
+def current_alias() -> None:
+    """Alias for `cases current`."""
+    cases_current()
+
+
+@app.command("use")
+def use_alias(case_ref: str = typer.Argument(..., help="Case name or path.")) -> None:
+    """Alias for `cases use`."""
+    cases_use(case_ref)
+
+
+@app.command("open")
+def open_alias(case_ref: str | None = typer.Argument(None, help="Optional case name or path.")) -> None:
+    """Alias for `cases open`."""
+    cases_open(case_ref)
 
 
 @app.command()

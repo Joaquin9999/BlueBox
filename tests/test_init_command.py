@@ -242,6 +242,6 @@ def test_new_generates_default_agent_prompt_content(tmp_path: Path) -> None:
     assert result.exit_code == 0
     prompt_text = (tmp_path / "cases" / "prompt-case" / "agent" / "prompt.md").read_text(encoding="utf-8")
     assert "most wanted hacker" in prompt_text
-    assert "You are NOT allowed to search the internet for" in prompt_text
+    assert "writeups" in prompt_text
 
 

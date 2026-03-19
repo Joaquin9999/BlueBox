@@ -17,6 +17,7 @@ def _build_case_for_status(tmp_path: Path) -> Path:
         app,
         [
             "init",
+            "--name",
             "Status Case",
             "--artifacts",
             str(artifacts_dir),
@@ -30,7 +31,7 @@ def _build_case_for_status(tmp_path: Path) -> Path:
     )
     assert init_result.exit_code == 0
 
-    case_root = tmp_path / "status-case"
+    case_root = tmp_path / "cases" / "status-case"
 
     classify_result = runner.invoke(app, ["classify", str(case_root)])
     assert classify_result.exit_code == 0

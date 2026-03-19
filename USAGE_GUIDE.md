@@ -30,6 +30,12 @@ bluebox doctor
 
 ### 4.1 Inicializar caso
 
+Modo recomendado vNext (seguro):
+
+```bash
+bluebox new
+```
+
 Modo interactivo (recomendado):
 
 ```bash
@@ -46,10 +52,12 @@ bluebox init --name "Suspicious Beaconing" \
 ```
 
 Resultado esperado:
-- Carpeta de caso sanitizada (ej. `suspicious-beaconing/`)
-- Estructura estándar de `notes/`, `meta/`, `.codex/`
+- Carpeta de caso sanitizada en `cases/<nombre-caso>/` (ej. `cases/suspicious-beaconing/`)
+- Estructura estándar compatible: `notes/`, `meta/`, `.codex/` + árbol vNext (`challenge/`, `agent/`, `memory/`, `output/`)
 - `hashes.json`, `artifacts_inventory.json`, `solution_state.json`
 - Proyecto activo guardado en `.bluebox/active_case.txt`
+- Recientes guardados en `.bluebox/recent_cases.json`
+- Config por defecto en `.bluebox/settings.yaml`
 
 ### 4.2 Clasificar caso
 
@@ -154,7 +162,18 @@ bluebox project list --existing-only
 bluebox project list --compact
 bluebox project prune-missing
 bluebox project clear
+bluebox cases list
+bluebox cases current
+bluebox cases use <case-name|case-path>
+bluebox cases open [<case-name|case-path>]
+bluebox cases clear
+bluebox cases archive <case-name|case-path>
+bluebox cases clone <case-name|case-path> <new-name>
+bluebox use <case-name|case-path>
+bluebox current
+bluebox open [<case-name|case-path>]
 bluebox init --name <name> --artifacts <path> --title <title>
+bluebox new --name <name> --artifacts <path> --title <title> [--evidence-mode reference-only|lightweight-copy|full-copy]
 bluebox classify [<case-path>]
 bluebox validate [<case-path>]
 bluebox solve [<case-path>] [--no-launch]

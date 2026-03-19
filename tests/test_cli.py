@@ -240,3 +240,5 @@ def test_project_prune_missing_removes_missing_entries(tmp_path, monkeypatch) ->
     list_result = runner.invoke(app, ["project", "list"])
     assert "missing-case" not in list_result.stdout
     assert "prune-existing" in list_result.stdout
+
+
