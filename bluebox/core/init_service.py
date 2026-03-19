@@ -96,7 +96,7 @@ def initialize_case_from_artifacts(
     artifacts_path: Path,
     title: str,
     context: str,
-    evidence_mode: str = "legacy-copy",
+    evidence_mode: str = "reference-only",
 ) -> Path:
     if evidence_mode not in EVIDENCE_MODES:
         raise ValueError(f"Unsupported evidence mode: {evidence_mode}")
@@ -140,42 +140,6 @@ def initialize_case_from_artifacts(
     hashes_entries, inventory_entries = _build_entries_for_source(source_root_for_index)
 
     _write_json(
-        case_root / "meta" / "hashes.json",
-        {
-            "case_name": spec.case_name,
-            "generated_at": timestamp,
-            "algorithm": "sha256",
-            "files": hashes_entries,
-        },
-    )
-
-    _write_json(
-        case_root / "meta" / "artifacts_inventory.json",
-        {
-            "case_name": spec.case_name,
-            "generated_at": timestamp,
-            "artifact_count": len(inventory_entries),
-            "artifacts": inventory_entries,
-        },
-    )
-
-    _write_json(
-        case_root / "meta" / "solution_state.json",
-        {
-            "case_name": spec.case_name,
-            "title": spec.title,
-            "status": "initialized",
-            "category": None,
-            "subcategories": [],
-            "context": spec.context,
-            "evidence_mode": evidence_mode,
-            "artifact_count": len(inventory_entries),
-            "created_at": timestamp,
-            "updated_at": timestamp,
-        },
-    )
-
-    _write_json(
         case_root / "challenge" / "hashes.json",
         {
             "case_name": spec.case_name,
@@ -213,18 +177,6 @@ def initialize_case_from_artifacts(
                 f'created_at: "{timestamp}"',
                 f'updated_at: "{timestamp}"',
                 f'context: "{safe_context}"',
-            ]
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-    (case_root / "notes" / "changelog.md").write_text(
-        "\n".join(
-            [
-                f"# Changelog — {spec.case_name}",
-                "",
-                f"- {timestamp}: Case initialized from artifacts (mode=`{evidence_mode}`, copied=`{copied_original}`).",
             ]
         )
         + "\n",
