@@ -78,6 +78,10 @@ bluebox solve ./suspicious-beaconing
 bluebox status ./suspicious-beaconing
 bluebox doctor
 bluebox finalize ./suspicious-beaconing
+bluebox tools list
+bluebox tools check base
+bluebox tools install network
+bluebox tools install network --apply
 ```
 
 ## Qué hace `bluebox init`
@@ -139,6 +143,13 @@ bluebox finalize ./suspicious-beaconing
   - disponibilidad de `uv`
   - disponibilidad de `codex`
   - disponibilidad de `git`
+
+## Qué hace `bluebox tools`
+
+- `bluebox tools list`: lista perfiles de herramientas DFIR/Blue Team.
+- `bluebox tools check <profile>`: verifica disponibilidad de herramientas del perfil.
+- `bluebox tools install <profile>`: muestra comandos sugeridos (dry-run por defecto).
+- `bluebox tools install <profile> --apply`: ejecuta instalación para faltantes.
 
 ## Qué hace `bluebox finalize`
 
