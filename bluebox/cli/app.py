@@ -368,6 +368,49 @@ def _compute_next_action(case_path: Path) -> str:
     return "Workflow looks complete. Run [cyan]bluebox info[/cyan] for a final operational check."
 
 
+def _reports_count(case_path: Path) -> int:
+    reports_dir = case_path / "work" / "reports"
+    if not reports_dir.is_dir():
+        return 0
+    return len([path for path in reports_dir.rglob("*") if path.is_file()])
+
+
+def _read_memory_tail(case_path: Path, max_lines: int = 8) -> list[str]:
+    memory_log = case_path / "memory" / "log.md"
+    if not memory_log.is_file():
+        return []
+
+    lines = [line.rstrip() for line in memory_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return lines[-max_lines:]
+
+
+def _build_case_summary_text(case_path: Path) -> str:
+    snapshot = get_case_status(case_path)
+    score, completed, pending = _compute_progress(case_path)
+    recommendation = _compute_next_action(case_path)
+    reports_count = _reports_count(case_path)
+    memory_tail = _read_memory_tail(case_path, max_lines=6)
+
+    sections = [
+        f"Case: {snapshot.case_name}",
+        f"Title: {snapshot.title}",
+        f"Status: {snapshot.status}",
+        f"Category: {snapshot.category or 'unclassified'}",
+        f"Artifacts: {snapshot.artifact_count}",
+        f"Reports: {reports_count}",
+        f"Progress: {score}%",
+        f"Completed: {', '.join(completed[:6]) if completed else 'none'}",
+        f"Pending: {', '.join(pending[:6]) if pending else 'none'}",
+        f"Next: {recommendation}",
+    ]
+
+    if memory_tail:
+        sections.append("Recent log:")
+        sections.extend(f"- {line}" for line in memory_tail)
+
+    return "\n".join(sections)
+
+
 @app.callback()
 def main() -> None:
     """BlueBox CLI."""
@@ -1033,11 +1076,13 @@ def info_case(
     score, completed, pending = _compute_progress(resolved_case_path)
     recommendation = _compute_next_action(resolved_case_path)
     settings = _read_settings()
+    reports_count = _reports_count(resolved_case_path)
 
     console.print(f"[bold]Case:[/bold] {snapshot.case_name}")
     console.print(f"[bold]Title:[/bold] {snapshot.title}")
     console.print(f"[bold]Status:[/bold] {snapshot.status}")
     console.print(f"[bold]Category:[/bold] {snapshot.category or 'unclassified'}")
+    console.print(f"[bold]Reports:[/bold] {reports_count}")
     console.print(f"[bold]Artifacts:[/bold] {snapshot.artifact_count}")
     console.print(f"[bold]Active hypotheses:[/bold] {snapshot.active_hypotheses_count}")
     console.print(f"[bold]Latest update:[/bold] {snapshot.latest_update or 'none'}")
@@ -1045,7 +1090,7 @@ def info_case(
     console.print(f"[bold]Completed:[/bold] {', '.join(completed[:5]) if completed else 'none'}")
     console.print(f"[bold]Pending:[/bold] {', '.join(pending[:5]) if pending else 'none'}")
     if settings:
-        console.print(f"[bold]Default profile:[/bold] {settings.get('default_profile', 'n/a')}")
+        console.print(f"[bold]Active tool profile:[/bold] {settings.get('default_profile', 'n/a')}")
     console.print(f"[bold]Next action:[/bold] {recommendation}")
 
 
@@ -1094,6 +1139,115 @@ def report_case(
 ) -> None:
     """Product alias for `finalize`."""
     finalize(case_path, allow_incomplete=allow_incomplete)
+
+
+@app.command()
+def handoff(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+    write: bool = typer.Option(True, "--write/--no-write", help="Write summary into agent/handoff.md."),
+) -> None:
+    """Generate concise handoff summary for the current case."""
+    resolved_case_path = _resolve_case_path(case_path, "handoff")
+    if not _is_case_workspace(resolved_case_path):
+        console.print(f"[red]Error:[/red] Not a valid case workspace: {resolved_case_path}")
+        raise typer.Exit(code=1)
+
+    summary_text = _build_case_summary_text(resolved_case_path)
+    console.print(summary_text)
+
+    if write:
+        handoff_path = resolved_case_path / "agent" / "handoff.md"
+        handoff_path.parent.mkdir(parents=True, exist_ok=True)
+        content = f"# Handoff\n\n{summary_text}\n"
+        handoff_path.write_text(content, encoding="utf-8")
+        console.print(f"[green]Updated handoff:[/green] {handoff_path}")
+
+
+@app.command("summary")
+def summary_command(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
+    """Produce compact human-readable case summary."""
+    resolved_case_path = _resolve_case_path(case_path, "summary")
+    if not _is_case_workspace(resolved_case_path):
+        console.print(f"[red]Error:[/red] Not a valid case workspace: {resolved_case_path}")
+        raise typer.Exit(code=1)
+
+    console.print(_build_case_summary_text(resolved_case_path))
+
+
+@app.command()
+def summarize(
+    source_path: Path = typer.Argument(..., help="Large file to summarize into a compact report."),
+    case_path: Path | None = typer.Option(
+        None,
+        "--case-path",
+        help="Case workspace (optional if project is active).",
+    ),
+    output_name: str | None = typer.Option(None, "--output-name", help="Custom output filename under work/reports."),
+) -> None:
+    """Turn large outputs into compact reports under work/reports/."""
+    resolved_case_path = _resolve_case_path(case_path, "summarize")
+    if not _is_case_workspace(resolved_case_path):
+        console.print(f"[red]Error:[/red] Not a valid case workspace: {resolved_case_path}")
+        raise typer.Exit(code=1)
+
+    resolved_source = source_path.expanduser().resolve()
+    if not resolved_source.is_file():
+        console.print(f"[red]Error:[/red] Source file not found: {resolved_source}")
+        raise typer.Exit(code=1)
+
+    try:
+        raw = resolved_source.read_bytes()
+    except OSError as error:
+        console.print(f"[red]Error:[/red] Unable to read source file: {error}")
+        raise typer.Exit(code=1) from error
+
+    report_name = output_name or f"{resolved_source.stem}_summary.md"
+    if not report_name.lower().endswith(".md"):
+        report_name = f"{report_name}.md"
+
+    reports_dir = resolved_case_path / "work" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / report_name
+
+    is_text = True
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        is_text = False
+        text = ""
+
+    lines = text.splitlines() if is_text else []
+    head_lines = lines[:20]
+    tail_lines = lines[-20:] if len(lines) > 20 else []
+
+    report_content = [
+        f"# Summary for `{resolved_source.name}`",
+        "",
+        f"- Source path: `{resolved_source}`",
+        f"- Size bytes: `{len(raw)}`",
+        f"- Text file: `{is_text}`",
+        f"- Line count: `{len(lines) if is_text else 'n/a'}`",
+        "",
+    ]
+
+    if is_text:
+        report_content.append("## First lines")
+        report_content.append("```")
+        report_content.extend(head_lines if head_lines else ["(empty file)"])
+        report_content.append("```")
+        if tail_lines:
+            report_content.append("")
+            report_content.append("## Last lines")
+            report_content.append("```")
+            report_content.extend(tail_lines)
+            report_content.append("```")
+    else:
+        report_content.append("Binary or non-UTF8 content. Use specialized tools and keep findings in this report.")
+
+    report_path.write_text("\n".join(report_content) + "\n", encoding="utf-8")
+    console.print(f"[green]Summary report created:[/green] {report_path}")
 
 
 @app.command()
