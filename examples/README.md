@@ -5,6 +5,7 @@ Este directorio contiene ejemplos **públicos y seguros** para demostrar flujo d
 ## Contenido
 
 - `safe-demo/`: artefactos sintéticos sin datos sensibles.
+- Formatos demo versionados: `.txt` (compatibles con reglas de `.gitignore` actuales).
 
 ## Flujo recomendado
 
