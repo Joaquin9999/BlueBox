@@ -1,5 +1,6 @@
 import json
 import shutil
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -261,6 +262,48 @@ def _resolve_case_path(case_path: Path | None, command_name: str) -> Path:
     raise typer.Exit(code=1)
 
 
+def _is_nonempty_file(path: Path) -> bool:
+    return path.is_file() and bool(path.read_text(encoding="utf-8").strip())
+
+
+def _compute_next_action(case_path: Path) -> str:
+    state_path = case_path / "meta" / "solution_state.json"
+    if state_path.is_file():
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            status = (state.get("status") or "").strip().lower()
+        except json.JSONDecodeError:
+            status = ""
+    else:
+        status = ""
+
+    if status in {"initialized", "new"}:
+        return "Case initialized. Run [cyan]bluebox inspect[/cyan] next."
+    if status == "classified":
+        return "Case classified. Run [cyan]bluebox run --no-launch[/cyan] to prepare solving context."
+    if status == "solving":
+        return "Solving in progress. Run [cyan]bluebox info[/cyan] and keep [cyan]memory/log.md[/cyan] updated."
+    if status == "solved":
+        return "Flag candidate found. Run [cyan]bluebox report[/cyan] to generate final writeup."
+    if status == "finalized":
+        return "Case already finalized. Review [cyan]output/writeup_final.md[/cyan] and export if needed."
+
+    if not (case_path / "challenge" / "manifest.json").is_file():
+        return "Missing challenge manifest. Recreate case or re-run [cyan]bluebox new[/cyan]."
+    if not (case_path / "challenge" / "hashes.json").is_file():
+        return "Missing hashes. Recreate evidence metadata before analysis."
+    if not _is_nonempty_file(case_path / "agent" / "context.md"):
+        return "Context is empty. Run [cyan]bluebox inspect[/cyan] to seed investigation direction."
+    if not any((case_path / "work" / "reports").glob("*.md")):
+        return "No reports yet. Run analysis and summarize outputs into [cyan]work/reports/[/cyan]."
+    if not _is_nonempty_file(case_path / "output" / "final_flag.txt"):
+        return "No flag candidate yet. Continue investigation and update [cyan]output/final_flag.txt[/cyan]."
+    if not _is_nonempty_file(case_path / "output" / "writeup_final.md"):
+        return "Generate polished output with [cyan]bluebox report[/cyan]."
+
+    return "Workflow looks complete. Run [cyan]bluebox info[/cyan] for a final operational check."
+
+
 @app.callback()
 def main() -> None:
     """BlueBox CLI."""
@@ -311,6 +354,120 @@ def start() -> None:
 [bold]Tip[/bold]: Usa [cyan]bluebox --help[/cyan] y [cyan]bluebox <comando> --help[/cyan] para ver opciones detalladas.
 """
     console.print(Panel.fit(message, title="bluebox start", border_style="cyan"))
+
+
+@app.command()
+def wizard(
+    base_path: Path = typer.Option(Path("."), "--base-path", help="Workspace root for folder bootstrap."),
+    create_case: bool = typer.Option(False, "--create-case", help="Create a case during wizard flow."),
+    challenge_name: str | None = typer.Option(None, "--name", help="Challenge name when --create-case is used."),
+    artifacts: Path | None = typer.Option(None, "--artifacts", help="Artifacts path when --create-case is used."),
+    title: str | None = typer.Option(None, "--title", help="Case title when --create-case is used."),
+    context: str | None = typer.Option(None, "--context", help="Initial case context."),
+    evidence_mode: str = typer.Option("reference-only", "--evidence-mode", help="reference-only | lightweight-copy | full-copy"),
+) -> None:
+    """Run onboarding wizard: verify environment, bootstrap folders, and optionally create a case."""
+    resolved_base = base_path.expanduser().resolve()
+    resolved_base.mkdir(parents=True, exist_ok=True)
+
+    console.print(f"[bold]Wizard[/bold] workspace: {resolved_base}")
+    console.print(f"- Python: {sys.version.split()[0]}")
+
+    package_manager = "none"
+    for candidate in ("brew", "apt", "winget", "choco"):
+        if shutil.which(candidate):
+            package_manager = candidate
+            break
+    console.print(f"- Package manager: {package_manager}")
+
+    for folder_name in (".bluebox", "inbox", "cases", "exports", "profiles"):
+        folder_path = resolved_base / folder_name
+        folder_path.mkdir(parents=True, exist_ok=True)
+        console.print(f"- ensured: {folder_path}")
+
+    current_dir = Path.cwd()
+    try:
+        os_changed = False
+        if current_dir != resolved_base:
+            os_changed = True
+            import os
+
+            os.chdir(resolved_base)
+        _ensure_settings_file()
+        if os_changed:
+            os.chdir(current_dir)
+    except Exception:
+        if Path.cwd() != current_dir:
+            import os
+
+            os.chdir(current_dir)
+        raise
+
+    if create_case:
+        selected_name = challenge_name or typer.prompt("Challenge name")
+        selected_artifacts = artifacts or Path(typer.prompt("Artifacts path (file or directory)")).expanduser()
+        selected_title = title or typer.prompt("Case title")
+        selected_context = context if context is not None else typer.prompt(
+            "Initial case context (optional)", default="", show_default=False
+        )
+
+        try:
+            case_root = initialize_case_from_artifacts(
+                base_path=resolved_base,
+                challenge_name=selected_name,
+                artifacts_path=selected_artifacts.expanduser().resolve(),
+                title=selected_title,
+                context=selected_context,
+                evidence_mode=evidence_mode,
+            )
+        except (FileNotFoundError, FileExistsError, ValueError) as error:
+            console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(code=1) from error
+
+        previous_cwd = Path.cwd()
+        try:
+            import os
+
+            os.chdir(resolved_base)
+            _save_active_case(case_root)
+        finally:
+            import os
+
+            os.chdir(previous_cwd)
+
+        console.print(f"\n[green]Case created successfully:[/green] {case_root}")
+    else:
+        console.print("\n[yellow]No case created.[/yellow] Re-run with [cyan]--create-case[/cyan] to create one now.")
+
+    console.print("\n[bold]Recommended next steps:[/bold]")
+    console.print("1. [cyan]bluebox info[/cyan]")
+    console.print("2. [cyan]bluebox inspect[/cyan]")
+    console.print("3. [cyan]bluebox run --no-launch[/cyan]")
+    console.print("4. [cyan]bluebox next[/cyan]")
+
+
+@app.command("next")
+def next_action(
+    case_path: Path | None = typer.Argument(None, help="Path to case workspace (optional if project is active)."),
+) -> None:
+    """Suggest the next best action based on current case state."""
+    if case_path is None:
+        candidate = _read_active_case()
+        if candidate is None:
+            console.print("[yellow]No active case detected.[/yellow]")
+            console.print("Next step: run [cyan]bluebox new[/cyan] or [cyan]bluebox wizard --create-case[/cyan].")
+            return
+        resolved_case = candidate
+    else:
+        resolved_case = case_path.expanduser().resolve()
+
+    if not _is_case_workspace(resolved_case):
+        console.print(f"[red]Error:[/red] Not a valid case workspace: {resolved_case}")
+        raise typer.Exit(code=1)
+
+    recommendation = _compute_next_action(resolved_case)
+    console.print(f"[bold]Case:[/bold] {resolved_case}")
+    console.print(f"[bold]Next:[/bold] {recommendation}")
 
 
 @app.command()
