@@ -46,6 +46,7 @@ bluebox version
 bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
 bluebox validate ./suspicious-beaconing
 bluebox classify ./suspicious-beaconing
+bluebox solve ./suspicious-beaconing
 ```
 
 ## Qué hace `bluebox init`
@@ -77,6 +78,16 @@ bluebox classify ./suspicious-beaconing
 	- `notes/writeup.md`
 	- `notes/changelog.md`
 	- `meta/solution_state.json` (estado `classified`)
+
+## Qué hace `bluebox solve`
+
+- Valida el caso antes de iniciar solve.
+- Construye `.codex/context.md` con título, contexto, categoría/subcategorías,
+	resumen de inventario, hipótesis activas y estado actual.
+- Copia el prompt principal de solver a `.codex/prompt.txt`.
+- Registra acciones en `meta/commands.log`.
+- Actualiza `meta/solution_state.json` a estado `solving`.
+- Lanza `codex` en el directorio del caso (o prepara sin lanzar con `--no-launch`).
 
 ## Ejecución de pruebas
 
