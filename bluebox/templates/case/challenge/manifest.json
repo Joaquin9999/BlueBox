@@ -1,0 +1,8 @@
+{
+  "case_name": "{{ case_name }}",
+  "generated_at": "{{ timestamp }}",
+  "source_path": "{{ source_ref | default('') }}",
+  "evidence_mode": "{{ evidence_mode | default('legacy-copy') }}",
+  "artifact_count": 0,
+  "artifacts": []
+}

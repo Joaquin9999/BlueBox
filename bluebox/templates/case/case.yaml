@@ -1,0 +1,8 @@
+case_name: "{{ case_name }}"
+title: "{{ title }}"
+status: "initialized"
+profile: null
+copy_mode: "legacy-copy"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+context: "{{ context }}"

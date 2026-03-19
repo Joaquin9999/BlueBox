@@ -1,0 +1,3 @@
+source_path={{ source_ref | default('') }}
+mode={{ evidence_mode | default('legacy-copy') }}
+created_at={{ timestamp }}

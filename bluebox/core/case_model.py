@@ -7,6 +7,14 @@ from pydantic import BaseModel, Field
 
 
 REQUIRED_CASE_DIRECTORIES: tuple[str, ...] = (
+    "challenge",
+    "work/reports",
+    "work/extracted",
+    "work/parsed",
+    "work/scratch",
+    "agent",
+    "memory",
+    "output",
     "original",
     "working",
     "derived/extracted",
@@ -18,6 +26,17 @@ REQUIRED_CASE_DIRECTORIES: tuple[str, ...] = (
 )
 
 REQUIRED_CASE_FILES: tuple[str, ...] = (
+    "case.yaml",
+    "challenge/source_ref.txt",
+    "challenge/manifest.json",
+    "challenge/hashes.json",
+    "agent/context.md",
+    "agent/prompt.md",
+    "agent/handoff.md",
+    "memory/log.md",
+    "output/writeup.md",
+    "output/writeup_final.md",
+    "output/final_flag.txt",
     "notes/writeup.md",
     "notes/findings.md",
     "notes/changelog.md",
