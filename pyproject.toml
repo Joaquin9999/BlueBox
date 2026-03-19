@@ -1,5 +1,5 @@
 [project]
-name = "bluehunt"
+name = "bluebox"
 version = "0.1.0"
 description = "Terminal-based reproducible framework for blue team/DFIR CTF workflows"
 readme = "README.md"
@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-bluehunt = "bluehunt.cli.app:app"
+bluebox = "bluebox.cli.app:app"
 
 [build-system]
 requires = ["hatchling>=1.24.2"]
