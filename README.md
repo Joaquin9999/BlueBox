@@ -44,6 +44,7 @@ pip install -e .
 bluebox --help
 bluebox version
 bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Suspicious Beaconing" --context "Initial context"
+bluebox validate ./suspicious-beaconing
 ```
 
 ## Qué hace `bluebox init`
@@ -55,6 +56,14 @@ bluebox init "Suspicious Beaconing" --artifacts ./samples/beaconing --title "Sus
 - Construye inventario en `meta/artifacts_inventory.json`.
 - Inicializa `meta/solution_state.json` con estado `initialized`.
 - Escribe la primera entrada en `notes/changelog.md`.
+
+## Qué valida `bluebox validate`
+
+- Estructura de carpetas requerida del caso.
+- Archivos obligatorios en `notes/`, `meta/` y `.codex/`.
+- JSON válido en archivos `meta/*.json` requeridos.
+- Estado permitido en `meta/solution_state.json`.
+- Retorna código `0` si el caso es válido y `1` si hay errores.
 
 ## Ejecución de pruebas
 

@@ -6,6 +6,7 @@ from .case_model import (
     sanitize_case_name,
 )
 from .init_service import initialize_case_from_artifacts
+from .validation import ALLOWED_SOLUTION_STATUS, ValidationReport, validate_case_structure
 from .workspace_builder import create_case_workspace
 
 __all__ = [
@@ -16,4 +17,7 @@ __all__ = [
     "ensure_case_structure",
     "create_case_workspace",
     "initialize_case_from_artifacts",
+    "ALLOWED_SOLUTION_STATUS",
+    "ValidationReport",
+    "validate_case_structure",
 ]
