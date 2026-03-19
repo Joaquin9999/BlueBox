@@ -7,6 +7,7 @@ from rich.console import Console
 from bluebox.core import (
     build_doctor_report,
     classify_case,
+    finalize_case,
     get_case_status,
     initialize_case_from_artifacts,
     prepare_and_launch_solve,
@@ -146,6 +147,28 @@ def doctor() -> None:
         status_text = "OK" if check.available else "MISSING"
         color = "green" if check.available else "red"
         console.print(f"[bold]{check.name}:[/bold] [{color}]{status_text}[/{color}] - {check.detail}")
+
+
+@app.command()
+def finalize(
+    case_path: Path = typer.Argument(..., help="Path to case workspace."),
+    allow_incomplete: bool = typer.Option(
+        False,
+        "--allow-incomplete",
+        help="Generate a clearly marked incomplete final writeup when case is not solved.",
+    ),
+) -> None:
+    """Generate final writeup from accumulated case documentation."""
+    try:
+        outcome = finalize_case(case_path.resolve(), allow_incomplete=allow_incomplete)
+    except (ValueError, FileNotFoundError, json.JSONDecodeError) as error:
+        console.print(f"[red]Error:[/red] {error}")
+        raise typer.Exit(code=1) from error
+
+    if outcome.generated_incomplete:
+        console.print(f"[yellow]Generated incomplete final writeup:[/yellow] {outcome.output_path}")
+    else:
+        console.print(f"[green]Generated final writeup:[/green] {outcome.output_path}")
 
 
 if __name__ == "__main__":
