@@ -6,6 +6,11 @@ app = typer.Typer(
 )
 
 
+@app.callback()
+def main() -> None:
+    """BlueHunt CLI."""
+
+
 @app.command()
 def version() -> None:
     """Show BlueHunt version."""
