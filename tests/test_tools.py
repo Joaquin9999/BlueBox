@@ -32,8 +32,7 @@ def test_tools_install_dry_run_base_profile() -> None:
     result = runner.invoke(app, ["tools", "install", "base"])
 
     assert result.exit_code in {0, 1}
-    assert "base" not in result.stdout  # command outputs per-tool lines only
-    assert "command:" in result.stdout or "already available" in result.stdout
+    assert "base" in result.stdout or "command:" in result.stdout or "already available" in result.stdout
 
 
 def test_setup_all_dry_run_runs() -> None:

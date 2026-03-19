@@ -20,13 +20,20 @@ def test_create_case_workspace_generates_structure_and_files(tmp_path: Path) -> 
     case_root = create_case_workspace(tmp_path, spec)
 
     assert case_root.name == "suspicious-beaconing"
-    assert (case_root / "original").is_dir()
-    assert (case_root / "working").is_dir()
-    assert (case_root / "derived" / "extracted").is_dir()
-    assert not (case_root / ".codex").exists()
+    assert (case_root / "challenge").is_dir()
+    assert (case_root / "work" / "reports").is_dir()
+    assert (case_root / "work" / "extracted").is_dir()
+    assert (case_root / "work" / "parsed").is_dir()
+    assert (case_root / "work" / "scratch").is_dir()
+    assert (case_root / "agent").is_dir()
+    assert (case_root / "memory").is_dir()
+    assert (case_root / "output").is_dir()
+    assert (case_root / "meta").is_dir()
+    assert (case_root / "notes").is_dir()
 
     for required_file in REQUIRED_CASE_FILES:
         assert (case_root / required_file).is_file(), f"Missing: {required_file}"
 
-    writeup_content = (case_root / "notes" / "writeup.md").read_text(encoding="utf-8")
+    writeup_content = (case_root / "output" / "writeup.md").read_text(encoding="utf-8")
     assert "Suspicious Beaconing" in writeup_content
+

@@ -166,6 +166,53 @@ def initialize_case_from_artifacts(
         encoding="utf-8",
     )
 
+    # Write meta/ JSON files used by classify, validate, solve, finalize services
+    _write_json(
+        case_root / "meta" / "hashes.json",
+        {
+            "case_name": spec.case_name,
+            "generated_at": timestamp,
+            "algorithm": "sha256",
+            "files": hashes_entries,
+        },
+    )
+
+    _write_json(
+        case_root / "meta" / "artifacts_inventory.json",
+        {
+            "case_name": spec.case_name,
+            "generated_at": timestamp,
+            "source_path": str(artifacts_path),
+            "evidence_mode": evidence_mode,
+            "artifact_count": len(inventory_entries),
+            "artifacts": inventory_entries,
+        },
+    )
+
+    _write_json(
+        case_root / "meta" / "solution_state.json",
+        {
+            "case_name": spec.case_name,
+            "title": spec.title,
+            "context": spec.context,
+            "status": "initialized",
+            "category": None,
+            "subcategories": [],
+            "artifact_count": len(inventory_entries),
+            "created_at": timestamp,
+            "updated_at": timestamp,
+        },
+    )
+
+    # Append init event to notes/changelog.md
+    changelog_path = case_root / "notes" / "changelog.md"
+    if changelog_path.exists():
+        current = changelog_path.read_text(encoding="utf-8").rstrip()
+        changelog_path.write_text(
+            current + f"\n\n## Updates\n- {timestamp}: Case initialized from artifacts ({evidence_mode}).\n",
+            encoding="utf-8",
+        )
+
     (case_root / "case.yaml").write_text(
         "\n".join(
             [

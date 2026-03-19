@@ -15,6 +15,8 @@ REQUIRED_CASE_DIRECTORIES: tuple[str, ...] = (
     "agent",
     "memory",
     "output",
+    "meta",
+    "notes",
 )
 
 REQUIRED_CASE_FILES: tuple[str, ...] = (
@@ -29,6 +31,15 @@ REQUIRED_CASE_FILES: tuple[str, ...] = (
     "output/writeup.md",
     "output/writeup_final.md",
     "output/final_flag.txt",
+    "meta/solution_state.json",
+    "meta/artifacts_inventory.json",
+    "meta/hashes.json",
+    "meta/evidence_summary.json",
+    "notes/hypotheses.md",
+    "notes/writeup.md",
+    "notes/writeup_final.md",
+    "notes/findings.md",
+    "notes/changelog.md",
 )
 
 
